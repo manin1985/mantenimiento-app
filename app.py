@@ -1,22 +1,78 @@
-# Define aquí tu clave secreta (puedes cambiar '1234' por lo que quieras)
-CLAVE_ENCARGADO = "2026"
+import os
+import psycopg2
+from flask import Flask, render_template, request, redirect
+
+app = Flask(__name__)
+
+# Configuración del PIN (Cámbialo aquí si quieres otro)
+PIN_SEGURIDAD = "1234"
+
+# Conexión a la base de datos de Render
+DATABASE_URL = os.environ.get('DATABASE_URL')
+
+def get_db_connection():
+    return psycopg2.connect(DATABASE_URL)
+
+def init_db():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('''CREATE TABLE IF NOT EXISTS incidencias 
+        (id SERIAL PRIMARY KEY, 
+         elemento TEXT NOT NULL, 
+         ubicacion TEXT NOT NULL, 
+         estado TEXT DEFAULT 'Pendiente',
+         fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    conn.commit()
+    cur.close()
+    conn.close()
+
+@app.route('/')
+def index():
+    init_db()
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM incidencias WHERE estado='Pendiente' ORDER BY fecha DESC")
+    pendientes = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template('index.html', pendientes=pendientes)
+
+@app.route('/historial')
+def historial():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM incidencias WHERE estado='Realizado' ORDER BY fecha DESC")
+    realizados = cur.fetchall()
+    cur.close()
+    conn.close()
+    return render_template('historial.html', realizados=realizados)
 
 @app.route('/nuevo', methods=['POST'])
 def nuevo():
-    # Leemos la clave que escribieron en el formulario
     pin_introducido = request.form.get('pin')
-    
-    if pin_introducido == CLAVE_ENCARGADO:
-        elemento = request.form.get('elemento')
-        ubicacion = request.form.get('ubicacion')
-        if elemento and ubicacion:
-            conn = get_db_connection()
-            cur = conn.cursor()
-            cur.execute("INSERT INTO incidencias (elemento, ubicacion) VALUES (%s, %s)", (elemento, ubicacion))
-            conn.commit()
-            cur.close()
-            conn.close()
-        return redirect('/')
-    else:
-        # Si la clave es mal, podrías mandar un mensaje de error
-        return "Clave incorrecta. No tienes permiso para crear avisos.", 403
+    if pin_introducido != PIN_SEGURIDAD:
+        return "<h3>PIN Incorrecto</h3><p>Acceso denegado.</p><a href='/'>Volver</a>", 403
+
+    elemento = request.form.get('elemento')
+    ubicacion = request.form.get('ubicacion')
+    if elemento and ubicacion:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO incidencias (elemento, ubicacion) VALUES (%s, %s)", (elemento, ubicacion))
+        conn.commit()
+        cur.close()
+        conn.close()
+    return redirect('/')
+
+@app.route('/completar/<int:id>')
+def completar(id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE incidencias SET estado='Realizado' WHERE id=%s", (id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect('/')
+
+if __name__ == '__main__':
+    app.run()
