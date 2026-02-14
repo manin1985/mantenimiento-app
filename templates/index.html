@@ -34,3 +34,14 @@
     </div>
 </body>
 </html>
+<div class="card p-3 mb-4 shadow-sm border-primary">
+    <h5>Nuevo Aviso (Solo Personal Autorizado)</h5>
+    <form action="/nuevo" method="POST">
+        <input type="text" name="elemento" class="form-control mb-2" placeholder="Ej: Contenedor Orgánico" required>
+        <input type="text" name="ubicacion" class="form-control mb-2" placeholder="Ej: Calle Mayor 12" required>
+        
+        <input type="password" name="pin" class="form-control mb-2" placeholder="Introduce el PIN para enviar" required>
+        
+        <button class="btn btn-primary w-100">Enviar a Bolsa de Trabajo</button>
+    </form>
+</div>
