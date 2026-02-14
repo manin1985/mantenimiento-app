@@ -39,4 +39,5 @@ def completar(id):
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, host='0.0.0.0') # '0.0.0.0' permite acceso desde el móvil en la misma red
+    # Eliminamos el host y el debug para que Render tome el control
+    app.run()
