@@ -3,24 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial - Mantenimiento</title>
+    <title>Historial</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Historial de Trabajo</h2>
-            <a href="/" class="btn btn-secondary btn-sm">Volver a Inicio</a>
+            <h4>Registro de Realizados</h4>
+            <div>
+                <a href="/exportar" class="btn btn-success btn-sm fw-bold">📥 Descargar Excel</a>
+                <a href="/" class="btn btn-secondary btn-sm">Volver</a>
+            </div>
         </div>
-
-        <div class="table-responsive shadow-sm bg-white rounded">
-            <table class="table table-hover mb-0">
+        <div class="table-responsive shadow bg-white rounded">
+            <table class="table table-hover align-middle mb-0">
                 <thead class="table-dark">
                     <tr>
                         <th>Elemento</th>
                         <th>Ubicación</th>
-                        <th>Realizado por</th>
-                        <th>Fecha/Hora</th>
+                        <th>Operario</th>
+                        <th>Fecha</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -29,13 +31,7 @@
                         <td class="fw-bold">{{ r[1] }}</td>
                         <td>{{ r[2] }}</td>
                         <td><span class="badge bg-success">{{ r[5] }}</span></td>
-                        <td class="small text-muted">
-                            {% if r[4] is string %}
-                                {{ r[4] }}
-                            {% else %}
-                                {{ r[4].strftime('%d/%m/%Y %H:%M') }}
-                            {% endif %}
-                        </td>
+                        <td class="small text-muted">{{ r[4].strftime('%d/%m/%Y %H:%M') if r[4].strftime else r[4] }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
