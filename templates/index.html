@@ -6,6 +6,11 @@
     <title>Mantenimiento - Operarios</title>
     <link rel="manifest" href="/manifest.json">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .prio-Alta { border-left: 8px solid #dc3545 !important; }
+        .prio-Media { border-left: 8px solid #ffc107 !important; }
+        .prio-Baja { border-left: 8px solid #0dcaf0 !important; }
+    </style>
 </head>
 <body class="bg-light">
     <nav class="navbar navbar-dark bg-primary mb-4 shadow">
@@ -19,8 +24,13 @@
         <div class="list-group">
             {% if pendientes %}
                 {% for p in pendientes %}
-                <div class="list-group-item shadow-sm mb-3 rounded p-3 border-start border-primary border-5">
-                    <h6 class="text-uppercase fw-bold">{{ p[1] }}</h6>
+                <div class="list-group-item shadow-sm mb-3 rounded p-3 bg-white prio-{{ p[6] }}">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h6 class="text-uppercase fw-bold mb-1">{{ p[1] }}</h6>
+                        <span class="badge {% if p[6]=='Alta' %}bg-danger{% elif p[6]=='Media' %}bg-warning text-dark{% else %}bg-info{% endif %}">
+                            {{ p[6] }}
+                        </span>
+                    </div>
                     <p class="text-muted small mb-3">📍 {{ p[2] }}</p>
                     <form action="/completar/{{ p[0] }}" method="POST" class="d-flex gap-2">
                         <input type="text" name="operario" class="form-control form-control-sm" placeholder="Tu nombre..." required>
