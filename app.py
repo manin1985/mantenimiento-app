@@ -16,6 +16,7 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
+    # 1. Creamos la tabla si no existe
     cur.execute('''CREATE TABLE IF NOT EXISTS incidencias 
         (id SERIAL PRIMARY KEY, 
          elemento TEXT NOT NULL, 
@@ -23,11 +24,17 @@ def init_db():
          estado TEXT DEFAULT 'Pendiente',
          fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
          operario TEXT)''')
+    
+    # 2. TRUCO DE EMERGENCIA: Forzamos la creación de la columna 'operario' por si la tabla ya existía de antes
+    try:
+        cur.execute("ALTER TABLE incidencias ADD COLUMN operario TEXT")
+    except:
+        conn.rollback() # Si ya existe, no pasa nada, ignoramos el error
+    
     conn.commit()
     cur.close()
     conn.close()
 
-# Permite que el móvil lea la configuración de la App
 @app.route('/manifest.json')
 def manifest():
     return send_from_directory(os.getcwd(), 'manifest.json')
@@ -67,7 +74,7 @@ def exportar():
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Reporte')
     output.seek(0)
-    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', attachment_filename="resumen_mensual.xlsx", as_attachment=True)
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="resumen_mensual.xlsx", as_attachment=True)
 
 @app.route('/nuevo', methods=['POST'])
 def nuevo():
@@ -90,6 +97,7 @@ def completar(id):
     if nombre:
         conn = get_db_connection()
         cur = conn.cursor()
+        # Aquí es donde daba el error si la columna no existía
         cur.execute("UPDATE incidencias SET estado='Realizado', operario=%s WHERE id=%s", (nombre, id))
         conn.commit()
         cur.close()
