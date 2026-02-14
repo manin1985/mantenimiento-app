@@ -1,10 +1,12 @@
 import os
 import psycopg2
-from flask import Flask, render_template, request, redirect
+import pandas as pd
+from flask import Flask, render_template, request, redirect, send_file
+from io import BytesIO
 
 app = Flask(__name__)
 
-# --- CONFIGURACIÓN ---
+# --- CONFIGURACIÓN SEGURA ---
 PIN_SEGURIDAD = "2026"
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
@@ -14,7 +16,6 @@ def get_db_connection():
 def init_db():
     conn = get_db_connection()
     cur = conn.cursor()
-    # Creamos la tabla con la nueva columna 'operario'
     cur.execute('''CREATE TABLE IF NOT EXISTS incidencias 
         (id SERIAL PRIMARY KEY, 
          elemento TEXT NOT NULL, 
@@ -51,11 +52,29 @@ def historial():
     conn.close()
     return render_template('historial.html', realizados=realizados)
 
+@app.route('/exportar')
+def exportar():
+    conn = get_db_connection()
+    # Esta consulta saca TODO para tu informe mensual
+    query = "SELECT elemento, ubicacion, estado, fecha, operario FROM incidencias ORDER BY fecha DESC"
+    df = pd.read_sql(query, conn)
+    conn.close()
+    
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Reporte_Mantenimiento')
+    output.seek(0)
+    
+    return send_file(output, 
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                     attachment_filename="resumen_mensual.xlsx", 
+                     as_attachment=True)
+
 @app.route('/nuevo', methods=['POST'])
 def nuevo():
     pin_introducido = request.form.get('pin')
     if pin_introducido != PIN_SEGURIDAD:
-        return "<h3>PIN Incorrecto</h3><a href='/crear'>Volver a intentar</a>", 403
+        return "<h3 style='color:red;'>PIN Incorrecto</h3><a href='/crear'>Volver</a>", 403
 
     elemento = request.form.get('elemento')
     ubicacion = request.form.get('ubicacion')
