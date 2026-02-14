@@ -1,43 +1,55 @@
-from flask import Flask, render_template, request, redirect
+import os
 import sqlite3
+from flask import Flask, render_template, request, redirect
 
 app = Flask(__name__)
 
-# Configuración inicial de la base de datos
+# Definimos dónde se guarda el archivo de datos
+DB_PATH = os.path.join(os.path.dirname(__file__), 'mantenimiento.db')
+
 def init_db():
-    with sqlite3.connect('mantenimiento.db') as conn:
+    """Esta función crea la tabla si no existe"""
+    with sqlite3.connect(DB_PATH) as conn:
         conn.execute('''CREATE TABLE IF NOT EXISTS incidencias 
             (id INTEGER PRIMARY KEY AUTOINCREMENT, 
              elemento TEXT, 
              ubicacion TEXT, 
              estado TEXT DEFAULT 'Pendiente')''')
+        conn.commit()
 
 @app.route('/')
 def index():
-    # Mostramos lo pendiente en la "bolsa" y lo realizado para el reporte
-    with sqlite3.connect('mantenimiento.db') as conn:
+    # EJECUTAMOS LA CREACIÓN SIEMPRE PARA ASEGURARNOS
+    init_db()
+    
+    with sqlite3.connect(DB_PATH) as conn:
         cursor = conn.cursor()
+        # Ahora sí encontrará la tabla
         cursor.execute("SELECT * FROM incidencias WHERE estado='Pendiente'")
         pendientes = cursor.fetchall()
         cursor.execute("SELECT * FROM incidencias WHERE estado='Realizado'")
         realizados = cursor.fetchall()
+    
     return render_template('index.html', pendientes=pendientes, realizados=realizados)
 
 @app.route('/nuevo', methods=['POST'])
 def nuevo():
-    elemento = request.form['elemento']
-    ubicacion = request.form['ubicacion']
-    with sqlite3.connect('mantenimiento.db') as conn:
-        conn.execute("INSERT INTO incidencias (elemento, ubicacion) VALUES (?,?)", (elemento, ubicacion))
+    elemento = request.form.get('elemento')
+    ubicacion = request.form.get('ubicacion')
+    if elemento and ubicacion:
+        with sqlite3.connect(DB_PATH) as conn:
+            conn.execute("INSERT INTO incidencias (elemento, ubicacion) VALUES (?,?)", (elemento, ubicacion))
+            conn.commit()
     return redirect('/')
 
 @app.route('/completar/<int:id>')
 def completar(id):
-    with sqlite3.connect('mantenimiento.db') as conn:
+    with sqlite3.connect(DB_PATH) as conn:
         conn.execute("UPDATE incidencias SET estado='Realizado' WHERE id=?", (id,))
+        conn.commit()
     return redirect('/')
 
 if __name__ == '__main__':
-    init_db()
-    # Eliminamos el host y el debug para que Render tome el control
-    app.run()
+    # Esto es para que funcione en Render
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host='0.0.0.0', port=port)
