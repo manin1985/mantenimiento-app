@@ -1,5 +1,5 @@
 # Define aquí tu clave secreta (puedes cambiar '1234' por lo que quieras)
-CLAVE_ENCARGADO = "1234"
+CLAVE_ENCARGADO = "2026"
 
 @app.route('/nuevo', methods=['POST'])
 def nuevo():
