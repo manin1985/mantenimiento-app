@@ -21,6 +21,7 @@
                     <tr>
                         <th>Elemento</th>
                         <th>Ubicación</th>
+                        <th>Prio.</th>
                         <th>Operario</th>
                         <th>Fecha</th>
                     </tr>
@@ -30,6 +31,7 @@
                     <tr>
                         <td class="fw-bold">{{ r[1] }}</td>
                         <td>{{ r[2] }}</td>
+                        <td><small>{{ r[6] }}</small></td>
                         <td><span class="badge bg-success">{{ r[5] }}</span></td>
                         <td class="small text-muted">{{ r[4].strftime('%d/%m/%Y %H:%M') if r[4].strftime else r[4] }}</td>
                     </tr>
