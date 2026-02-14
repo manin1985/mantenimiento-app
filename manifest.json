@@ -1,0 +1,16 @@
+{
+  "short_name": "Mantenimiento",
+  "name": "App de Mantenimiento Urbano",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/1048/1048953.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "theme_color": "#0d6efd"
+}
