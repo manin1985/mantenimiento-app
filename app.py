@@ -3,6 +3,7 @@ import psycopg2
 import pandas as pd
 from flask import Flask, render_template, request, redirect, send_file, send_from_directory
 from io import BytesIO
+import time
 
 app = Flask(__name__)
 
@@ -10,32 +11,41 @@ PIN_SEGURIDAD = "2026"
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db_connection():
+    # Intentar conectar hasta 3 veces si el servidor está dormido
+    for i in range(3):
+        try:
+            conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+            return conn
+        except:
+            time.sleep(2)
     return psycopg2.connect(DATABASE_URL)
 
 def init_db():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    # Creamos la tabla base
-    cur.execute('''CREATE TABLE IF NOT EXISTS incidencias 
-        (id SERIAL PRIMARY KEY, 
-         elemento TEXT NOT NULL, 
-         ubicacion TEXT NOT NULL, 
-         estado TEXT DEFAULT 'Pendiente',
-         fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-         operario TEXT,
-         prioridad TEXT DEFAULT 'Media')''')
-    
-    # Truco de emergencia para añadir columnas si la tabla ya existía
     try:
-        cur.execute("ALTER TABLE incidencias ADD COLUMN operario TEXT")
-    except: conn.rollback()
-    try:
-        cur.execute("ALTER TABLE incidencias ADD COLUMN prioridad TEXT DEFAULT 'Media'")
-    except: conn.rollback()
-    
-    conn.commit()
-    cur.close()
-    conn.close()
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('''CREATE TABLE IF NOT EXISTS incidencias 
+            (id SERIAL PRIMARY KEY, 
+             elemento TEXT NOT NULL, 
+             ubicacion TEXT NOT NULL, 
+             estado TEXT DEFAULT 'Pendiente',
+             fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+             operario TEXT,
+             prioridad TEXT DEFAULT 'Media')''')
+        
+        # Aseguramos que las columnas existan (por si acaso)
+        try:
+            cur.execute("ALTER TABLE incidencias ADD COLUMN operario TEXT")
+        except: conn.rollback()
+        try:
+            cur.execute("ALTER TABLE incidencias ADD COLUMN prioridad TEXT DEFAULT 'Media'")
+        except: conn.rollback()
+        
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Error iniciando DB: {e}")
 
 @app.route('/manifest.json')
 def manifest():
@@ -43,10 +53,21 @@ def manifest():
 
 @app.route('/')
 def index():
-    init_db()
+    init_db() # Despierta la DB si está dormida
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT * FROM incidencias WHERE estado='Pendiente' ORDER BY CASE WHEN prioridad='Alta' THEN 1 WHEN prioridad='Media' THEN 2 ELSE 3 END, fecha DESC")
+    # Ordenamos por prioridad y luego por fecha
+    cur.execute("""
+        SELECT * FROM incidencias 
+        WHERE estado='Pendiente' 
+        ORDER BY 
+            CASE prioridad 
+                WHEN 'Alta' THEN 1 
+                WHEN 'Media' THEN 2 
+                ELSE 3 
+            END, 
+            fecha DESC
+    """)
     pendientes = cur.fetchall()
     cur.close()
     conn.close()
@@ -76,7 +97,7 @@ def exportar():
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Reporte')
     output.seek(0)
-    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="resumen_mantenimiento.xlsx", as_attachment=True)
+    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="resumen.xlsx", as_attachment=True)
 
 @app.route('/nuevo', methods=['POST'])
 def nuevo():
@@ -84,7 +105,7 @@ def nuevo():
         return "PIN Incorrecto", 403
     elemento = request.form.get('elemento')
     ubicacion = request.form.get('ubicacion')
-    prioridad = request.form.get('prioridad')
+    prioridad = request.form.get('prioridad', 'Media')
     if elemento and ubicacion:
         conn = get_db_connection()
         cur = conn.cursor()
