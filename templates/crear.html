@@ -3,28 +3,35 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Encargado - Crear Aviso</title>
+    <title>Nuevo Aviso - Encargado</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
-<body class="bg-light p-4">
-    <div class="container" style="max-width: 500px;">
-        <h3 class="text-center mb-4">Nueva Incidencia</h3>
-        <div class="card shadow p-3">
-            <form action="/nuevo" method="POST">
-                <label>¿Qué hay que reparar?</label>
-                <input type="text" name="elemento" class="form-control mb-3" placeholder="Ej: Contenedor Papel" required>
-                
-                <label>Ubicación</label>
-                <input type="text" name="ubicacion" class="form-control mb-3" placeholder="Ej: C/ Mayor 12" required>
-                
-                <label>PIN de Autorización</label>
-                <input type="password" name="pin" class="form-control mb-4" placeholder="Clave 2026" required>
-                
-                <button class="btn btn-primary w-100">Publicar para los Operarios</button>
-            </form>
+<body class="bg-light">
+    <div class="container mt-5" style="max-width: 450px;">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white text-center">
+                <h5 class="mb-0">Crear Nueva Tarea</h5>
+            </div>
+            <div class="card-body">
+                <form action="/nuevo" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">ELEMENTO</label>
+                        <input type="text" name="elemento" class="form-control" placeholder="Ej: Contenedor Roto" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">UBICACIÓN</label>
+                        <input type="text" name="ubicacion" class="form-control" placeholder="Ej: Calle Mayor 15" required>
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label small fw-bold text-danger">PIN DE AUTORIZACIÓN</label>
+                        <input type="password" name="pin" class="form-control" placeholder="Clave 2026" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">PUBLICAR AVISO</button>
+                </form>
+            </div>
         </div>
         <div class="text-center mt-3">
-            <a href="/" class="btn btn-link text-secondary">Ver lista de trabajos</a>
+            <a href="/" class="text-secondary small">Volver al listado principal</a>
         </div>
     </div>
 </body>
