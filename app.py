@@ -10,7 +10,7 @@ app = Flask(__name__)
 PIN_SEGURIDAD = "2026"
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-# --- LISTA TÉCNICA DE RECAMBIOS ---
+# --- TU LISTA TÉCNICA DE RECAMBIOS ---
 LISTA_RECAMBIOS = [
     "ninguno/mano de obra", "PEDAL2400", "PEDAL3200", "cubierta lateral izda", 
     "cubierta lateral dcha", "estructural izda", "estructural dcha", 
@@ -92,10 +92,18 @@ def asignar(id):
 
 @app.route('/completar/<int:id>', methods=['POST'])
 def completar(id):
-    recambio = request.form.get('recambio')
+    recambio_lista = request.form.get('recambio')
+    recambio_manual = request.form.get('recambio_otro')
+    
+    # Lógica para guardar el texto manual si se elige OTROS
+    if recambio_lista and "OTROS" in recambio_lista and recambio_manual:
+        recambio_final = f"OTROS: {recambio_manual}"
+    else:
+        recambio_final = recambio_lista
+
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("UPDATE incidencias SET estado='Realizado', recambio=%s WHERE id=%s", (recambio, id))
+    cur.execute("UPDATE incidencias SET estado='Realizado', recambio=%s WHERE id=%s", (recambio_final, id))
     conn.commit()
     cur.close()
     conn.close()
