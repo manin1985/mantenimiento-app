@@ -1,7 +1,7 @@
 import os
 import psycopg2
 import pandas as pd
-from flask import Flask, render_template, request, redirect, send_file, send_from_directory
+from Flask import Flask, render_template, request, redirect, send_file, send_from_directory
 from io import BytesIO
 import time
 
@@ -9,6 +9,22 @@ app = Flask(__name__)
 
 PIN_SEGURIDAD = "2026"
 DATABASE_URL = os.environ.get('DATABASE_URL')
+
+# --- TU LISTA TÉCNICA DE RECAMBIOS ---
+LISTA_RECAMBIOS = [
+    "ninguno/mano de obra", "PEDAL2400", "PEDAL3200", "cubierta lateral izda", 
+    "cubierta lateral dcha", "estructural izda", "estructural dcha", 
+    "CONJUNTO EJE PEDAL", "SIRGA", "CABLE 2400", "CABLE 3200", "CHAPA ESPADA", 
+    "espada 2400", "espada 3200", "SUBCONJUNTO EMPUJADOR", "TAPA SUPERIOR BRAZO", 
+    "ENLACE PEDAL2400", "ENLACE PEDAL 3200", "ENV t.calle3200", "ENV t.calle2200", 
+    "ENV t.usuario3200", "ENV t.usuario2200", "ENV conjunto tapa3200", 
+    "ENV conjunto tapa2400", "PYC t.calle3200", "PYC t.calle2200", 
+    "PYC t.usuario3200", "PYC t.usuario2200", "PYC conjunto tapa3200", 
+    "PYC conjunto tapa2400", "RSU t.calle2200", "RSU t.calle3200", 
+    "RSU t.usuario3200", "RSU t.usuario2200", "RSU esquina dcha", 
+    "RSU esquina izda", "conjunto espada izda2400", "conjunto espada dcha2400", 
+    "conjunto espada izda3200", "conjunto espada dcha3200", "OTROS (especificar en notas)"
+]
 
 def get_db_connection():
     for i in range(5):
@@ -30,18 +46,21 @@ def init_db():
              estado TEXT DEFAULT 'Pendiente',
              fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
              operario TEXT,
-             prioridad TEXT DEFAULT 'Media')''')
+             prioridad TEXT DEFAULT 'Media',
+             recambio TEXT)''')
         
-        # Asegurar columnas
+        # Scripts de actualización de columnas por si acaso
         try: cur.execute("ALTER TABLE incidencias ADD COLUMN operario TEXT")
         except: conn.rollback()
         try: cur.execute("ALTER TABLE incidencias ADD COLUMN prioridad TEXT DEFAULT 'Media'")
+        except: conn.rollback()
+        try: cur.execute("ALTER TABLE incidencias ADD COLUMN recambio TEXT")
         except: conn.rollback()
         
         conn.commit()
         cur.close()
         conn.close()
-    except Exception as e: print(f"Error: {e}")
+    except Exception as e: print(f"Error DB: {e}")
 
 @app.route('/manifest.json')
 def manifest():
@@ -52,18 +71,15 @@ def index():
     init_db()
     conn = get_db_connection()
     cur = conn.cursor()
-    # Mostramos Pendientes y En Proceso
     cur.execute("""
         SELECT * FROM incidencias 
         WHERE estado IN ('Pendiente', 'En Proceso') 
-        ORDER BY 
-            CASE prioridad WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END, 
-            fecha DESC
+        ORDER BY CASE prioridad WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END, fecha DESC
     """)
     pendientes = cur.fetchall()
     cur.close()
     conn.close()
-    return render_template('index.html', pendientes=pendientes)
+    return render_template('index.html', pendientes=pendientes, recambios=LISTA_RECAMBIOS)
 
 @app.route('/asignar/<int:id>', methods=['POST'])
 def asignar(id):
@@ -79,9 +95,10 @@ def asignar(id):
 
 @app.route('/completar/<int:id>', methods=['POST'])
 def completar(id):
+    recambio = request.form.get('recambio')
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("UPDATE incidencias SET estado='Realizado' WHERE id=%s", (id))
+    cur.execute("UPDATE incidencias SET estado='Realizado', recambio=%s WHERE id=%s", (recambio, id))
     conn.commit()
     cur.close()
     conn.close()
@@ -110,17 +127,17 @@ def historial():
     conn.close()
     return render_template('historial.html', realizados=realizados)
 
-@app.route('/crear')
-def pagina_crear(): return render_template('crear.html')
-
 @app.route('/exportar')
 def exportar():
     conn = get_db_connection()
-    df = pd.read_sql("SELECT elemento, ubicacion, prioridad, estado, fecha, operario FROM incidencias ORDER BY fecha DESC", conn)
+    df = pd.read_sql("SELECT elemento, ubicacion, prioridad, estado, fecha, operario, recambio FROM incidencias ORDER BY fecha DESC", conn)
     conn.close()
     out = BytesIO()
     with pd.ExcelWriter(out, engine='openpyxl') as writer: df.to_excel(writer, index=False)
     out.seek(0)
-    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="reporte.xlsx", as_attachment=True)
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="reporte_mantenimiento.xlsx", as_attachment=True)
+
+@app.route('/crear')
+def pagina_crear(): return render_template('crear.html')
 
 if __name__ == '__main__': app.run()
