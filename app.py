@@ -1,7 +1,7 @@
 import os
 import psycopg2
 import pandas as pd
-from Flask import Flask, render_template, request, redirect, send_file, send_from_directory
+from flask import Flask, render_template, request, redirect, send_file, send_from_directory
 from io import BytesIO
 import time
 
@@ -10,7 +10,7 @@ app = Flask(__name__)
 PIN_SEGURIDAD = "2026"
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
-# --- TU LISTA TÉCNICA DE RECAMBIOS ---
+# --- LISTA TÉCNICA DE RECAMBIOS ---
 LISTA_RECAMBIOS = [
     "ninguno/mano de obra", "PEDAL2400", "PEDAL3200", "cubierta lateral izda", 
     "cubierta lateral dcha", "estructural izda", "estructural dcha", 
@@ -48,15 +48,12 @@ def init_db():
              operario TEXT,
              prioridad TEXT DEFAULT 'Media',
              recambio TEXT)''')
-        
-        # Scripts de actualización de columnas por si acaso
         try: cur.execute("ALTER TABLE incidencias ADD COLUMN operario TEXT")
         except: conn.rollback()
         try: cur.execute("ALTER TABLE incidencias ADD COLUMN prioridad TEXT DEFAULT 'Media'")
         except: conn.rollback()
         try: cur.execute("ALTER TABLE incidencias ADD COLUMN recambio TEXT")
         except: conn.rollback()
-        
         conn.commit()
         cur.close()
         conn.close()
@@ -140,4 +137,5 @@ def exportar():
 @app.route('/crear')
 def pagina_crear(): return render_template('crear.html')
 
-if __name__ == '__main__': app.run()
+if __name__ == '__main__':
+    app.run()
