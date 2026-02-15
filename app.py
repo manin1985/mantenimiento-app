@@ -11,13 +11,12 @@ PIN_SEGURIDAD = "2026"
 DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db_connection():
-    # Intentar conectar hasta 3 veces si el servidor está dormido
-    for i in range(3):
+    for i in range(5):
         try:
-            conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
+            conn = psycopg2.connect(DATABASE_URL, connect_timeout=15)
             return conn
         except:
-            time.sleep(2)
+            time.sleep(3)
     return psycopg2.connect(DATABASE_URL)
 
 def init_db():
@@ -33,19 +32,16 @@ def init_db():
              operario TEXT,
              prioridad TEXT DEFAULT 'Media')''')
         
-        # Aseguramos que las columnas existan (por si acaso)
-        try:
-            cur.execute("ALTER TABLE incidencias ADD COLUMN operario TEXT")
+        # Asegurar columnas
+        try: cur.execute("ALTER TABLE incidencias ADD COLUMN operario TEXT")
         except: conn.rollback()
-        try:
-            cur.execute("ALTER TABLE incidencias ADD COLUMN prioridad TEXT DEFAULT 'Media'")
+        try: cur.execute("ALTER TABLE incidencias ADD COLUMN prioridad TEXT DEFAULT 'Media'")
         except: conn.rollback()
         
         conn.commit()
         cur.close()
         conn.close()
-    except Exception as e:
-        print(f"Error iniciando DB: {e}")
+    except Exception as e: print(f"Error: {e}")
 
 @app.route('/manifest.json')
 def manifest():
@@ -53,19 +49,15 @@ def manifest():
 
 @app.route('/')
 def index():
-    init_db() # Despierta la DB si está dormida
+    init_db()
     conn = get_db_connection()
     cur = conn.cursor()
-    # Ordenamos por prioridad y luego por fecha
+    # Mostramos Pendientes y En Proceso
     cur.execute("""
         SELECT * FROM incidencias 
-        WHERE estado='Pendiente' 
+        WHERE estado IN ('Pendiente', 'En Proceso') 
         ORDER BY 
-            CASE prioridad 
-                WHEN 'Alta' THEN 1 
-                WHEN 'Media' THEN 2 
-                ELSE 3 
-            END, 
+            CASE prioridad WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END, 
             fecha DESC
     """)
     pendientes = cur.fetchall()
@@ -73,9 +65,40 @@ def index():
     conn.close()
     return render_template('index.html', pendientes=pendientes)
 
-@app.route('/crear')
-def pagina_crear():
-    return render_template('crear.html')
+@app.route('/asignar/<int:id>', methods=['POST'])
+def asignar(id):
+    nombre = request.form.get('operario')
+    if nombre:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("UPDATE incidencias SET estado='En Proceso', operario=%s WHERE id=%s", (nombre, id))
+        conn.commit()
+        cur.close()
+        conn.close()
+    return redirect('/')
+
+@app.route('/completar/<int:id>', methods=['POST'])
+def completar(id):
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE incidencias SET estado='Realizado' WHERE id=%s", (id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect('/')
+
+@app.route('/nuevo', methods=['POST'])
+def nuevo():
+    if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
+    elemento, ubi, prio = request.form.get('elemento'), request.form.get('ubicacion'), request.form.get('prioridad', 'Media')
+    if elemento and ubi:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO incidencias (elemento, ubicacion, prioridad) VALUES (%s, %s, %s)", (elemento, ubi, prio))
+        conn.commit()
+        cur.close()
+        conn.close()
+    return redirect('/')
 
 @app.route('/historial')
 def historial():
@@ -87,45 +110,17 @@ def historial():
     conn.close()
     return render_template('historial.html', realizados=realizados)
 
+@app.route('/crear')
+def pagina_crear(): return render_template('crear.html')
+
 @app.route('/exportar')
 def exportar():
     conn = get_db_connection()
-    query = "SELECT elemento, ubicacion, prioridad, estado, fecha, operario FROM incidencias ORDER BY fecha DESC"
-    df = pd.read_sql(query, conn)
+    df = pd.read_sql("SELECT elemento, ubicacion, prioridad, estado, fecha, operario FROM incidencias ORDER BY fecha DESC", conn)
     conn.close()
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Reporte')
-    output.seek(0)
-    return send_file(output, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="resumen.xlsx", as_attachment=True)
+    out = BytesIO()
+    with pd.ExcelWriter(out, engine='openpyxl') as writer: df.to_excel(writer, index=False)
+    out.seek(0)
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="reporte.xlsx", as_attachment=True)
 
-@app.route('/nuevo', methods=['POST'])
-def nuevo():
-    if request.form.get('pin') != PIN_SEGURIDAD:
-        return "PIN Incorrecto", 403
-    elemento = request.form.get('elemento')
-    ubicacion = request.form.get('ubicacion')
-    prioridad = request.form.get('prioridad', 'Media')
-    if elemento and ubicacion:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("INSERT INTO incidencias (elemento, ubicacion, prioridad) VALUES (%s, %s, %s)", (elemento, ubicacion, prioridad))
-        conn.commit()
-        cur.close()
-        conn.close()
-    return redirect('/')
-
-@app.route('/completar/<int:id>', methods=['POST'])
-def completar(id):
-    nombre = request.form.get('operario')
-    if nombre:
-        conn = get_db_connection()
-        cur = conn.cursor()
-        cur.execute("UPDATE incidencias SET estado='Realizado', operario=%s WHERE id=%s", (nombre, id))
-        conn.commit()
-        cur.close()
-        conn.close()
-    return redirect('/')
-
-if __name__ == '__main__':
-    app.run()
+if __name__ == '__main__': app.run()
