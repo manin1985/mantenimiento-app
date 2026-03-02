@@ -5,34 +5,51 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Historial</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 </head>
 <body class="bg-light">
-    <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h5 class="fw-bold">REGISTRO DE TRABAJOS</h5>
+    <div class="container mt-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="fw-bold mb-0">HISTORIAL</h5>
             <div>
-                <a href="/exportar" class="btn btn-success btn-sm fw-bold shadow-sm">📊 EXCEL</a>
-                <a href="/" class="btn btn-secondary btn-sm">VOLVER</a>
+                <a href="/exportar" class="btn btn-success btn-sm me-1">Excel</a>
+                <a href="/" class="btn btn-secondary btn-sm">Volver</a>
             </div>
         </div>
-        <div class="table-responsive shadow bg-white rounded-3">
-            <table class="table table-hover align-middle mb-0">
-                <thead class="table-dark text-nowrap">
-                    <tr><th>Tarea</th><th>Ubicación</th><th>Operario</th><th>Recambio</th><th>Fecha</th></tr>
+        <div class="table-responsive bg-white rounded shadow-sm">
+            <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.85rem;">
+                <thead class="table-dark">
+                    <tr><th>Tarea/Ubi</th><th>Recambios</th><th>Acción</th></tr>
                 </thead>
-                <tbody class="small">
+                <tbody>
                     {% for r in realizados %}
                     <tr>
-                        <td class="fw-bold">{{ r[1] }}</td>
-                        <td>{{ r[2] }}</td>
-                        <td><span class="badge bg-secondary">{{ r[5] }}</span></td>
-                        <td><i>{{ r[7] if r[7] else 'ninguno' }}</i></td>
-                        <td class="text-muted">{{ r[4].strftime('%d/%m %H:%M') if r[4].strftime else r[4] }}</td>
+                        <td>
+                            <b>{{ r[1] }}</b><br>
+                            <small class="text-muted">{{ r[2] }} | {{ r[5] }}</small>
+                        </td>
+                        <td><small>{{ r[7] }}</small></td>
+                        <td>
+                            <button class="btn btn-outline-warning btn-sm" onclick="confirmarReactivar('{{r[0]}}')"><i class="bi bi-arrow-counterclockwise"></i></button>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+    <script>
+    function confirmarReactivar(id) {
+        const pin = prompt("Introduce PIN para REABRIR esta incidencia:");
+        if (pin === "2026") {
+            const form = document.createElement('form');
+            form.method = 'POST'; form.action = '/reactivar/' + id;
+            const input = document.createElement('input');
+            input.type = 'hidden'; input.name = 'pin'; input.value = pin;
+            form.appendChild(input);
+            document.body.appendChild(form); form.submit();
+        } else if (pin) { alert("PIN incorrecto"); }
+    }
+    </script>
 </body>
 </html>
