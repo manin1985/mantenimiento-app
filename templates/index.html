@@ -83,14 +83,13 @@
 
     <script>
     function checkOtros(s, id) { document.getElementById(id).style.display = s.value.includes("OTROS") ? "block" : "none"; }
-
     function addPieza(id) {
         const s = document.getElementById('sel-'+id);
         const q = document.getElementById('qty-'+id);
         const l = document.getElementById('lista-'+id);
         const inp = document.getElementById('inputs-'+id);
-        const m = document.getElementById('manual-'+id);
         const hM = document.getElementById('hidden-otro-'+id);
+        const m = document.getElementById('manual-'+id);
 
         if(s.value.includes("OTROS")) { hM.value = m.value; m.disabled = true; s.disabled = true; return; }
         if(s.value.includes("ninguno")) return;
@@ -112,17 +111,15 @@
             const nElem = prompt("Nuevo Elemento:", elem) || elem;
             const nUbi = prompt("Nueva Ubicación:", ubi) || ubi;
             const nPrio = prompt("Prioridad (Baja/Media/Alta):", prio) || prio;
-            
             const form = document.createElement('form');
             form.method = 'POST'; form.action = '/editar/' + id;
             const params = {pin: pin, elemento: nElem, ubicacion: nUbi, prioridad: nPrio};
             for (const key in params) {
-                const input = document.createElement('input');
-                input.type = 'hidden'; input.name = key; input.value = params[key];
-                form.appendChild(input);
+                const i = document.createElement('input'); i.type = 'hidden'; i.name = key; i.value = params[key];
+                form.appendChild(i);
             }
             document.body.appendChild(form); form.submit();
-        } else if (pin) { alert("PIN incorrecto"); }
+        }
     }
 
     function confirmarBorrar(id) {
@@ -130,11 +127,10 @@
         if (pin === "2026") {
             const form = document.createElement('form');
             form.method = 'POST'; form.action = '/borrar/' + id;
-            const input = document.createElement('input');
-            input.type = 'hidden'; input.name = 'pin'; input.value = pin;
-            form.appendChild(input);
+            const i = document.createElement('input'); i.type = 'hidden'; i.name = 'pin'; i.value = pin;
+            form.appendChild(i);
             document.body.appendChild(form); form.submit();
-        } else if (pin) { alert("PIN incorrecto"); }
+        }
     }
     </script>
 </body>
