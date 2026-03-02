@@ -25,11 +25,10 @@ LISTA_RECAMBIOS = [
     "PYC conjunto tapa2400", "RSU t.calle2200", "RSU t.calle3200", 
     "RSU t.usuario3200", "RSU t.usuario2200", "RSU esquina dcha", 
     "RSU esquina izda", "conjunto espada izda2400", "conjunto espada dcha2400", 
-    "conjunto espada izda3200", "conjunto espada dcha3200", "OTROS (especificar en notas)"
+    "conjunto espada izda3200", "conjunto espada dcha3200", "OTROS (especificar)"
 ]
 
 def get_db_connection():
-    # Usamos un bloque try-except robusto para asegurar disponibilidad
     for i in range(5):
         try:
             conn = psycopg2.connect(DATABASE_URL, connect_timeout=10)
@@ -37,8 +36,7 @@ def get_db_connection():
             cur.execute("SET TIME ZONE 'Europe/Madrid';")
             cur.close()
             return conn
-        except Exception as e:
-            print(f"Error de conexión ({i+1}/5): {e}")
+        except:
             time.sleep(1)
     return psycopg2.connect(DATABASE_URL)
 
@@ -46,13 +44,7 @@ def get_db_connection():
 def index():
     conn = get_db_connection()
     cur = conn.cursor()
-    # Seleccionamos solo las que no están terminadas
-    cur.execute("""
-        SELECT id, elemento, ubicacion, estado, fecha, operario, prioridad 
-        FROM incidencias 
-        WHERE estado IN ('Pendiente', 'En Proceso') 
-        ORDER BY CASE prioridad WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END, fecha DESC
-    """)
+    cur.execute("SELECT id, elemento, ubicacion, estado, fecha, operario, prioridad FROM incidencias WHERE estado IN ('Pendiente', 'En Proceso') ORDER BY CASE prioridad WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END, fecha DESC")
     pendientes = cur.fetchall()
     cur.close()
     conn.close()
@@ -61,15 +53,11 @@ def index():
 @app.route('/nuevo', methods=['POST'])
 def nuevo():
     if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
-    elemento = request.form.get('elemento')
-    ubi = request.form.get('ubicacion')
-    prio = request.form.get('prioridad', 'Media')
-    ahora_madrid = datetime.now(madrid_tz)
-    
+    elemento, ubi, prio = request.form.get('elemento'), request.form.get('ubicacion'), request.form.get('prioridad', 'Media')
+    ahora = datetime.now(madrid_tz)
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("INSERT INTO incidencias (elemento, ubicacion, prioridad, fecha) VALUES (%s, %s, %s, %s)", 
-               (elemento, ubi, prio, ahora_madrid))
+    cur.execute("INSERT INTO incidencias (elemento, ubicacion, prioridad, fecha) VALUES (%s, %s, %s, %s)", (elemento, ubi, prio, ahora))
     conn.commit()
     cur.close()
     conn.close()
@@ -80,7 +68,6 @@ def asignar(id):
     nombre = request.form.get('operario')
     conn = get_db_connection()
     cur = conn.cursor()
-    # Doble seguridad: solo asignar si sigue Pendiente
     cur.execute("UPDATE incidencias SET estado='En Proceso', operario=%s WHERE id=%s AND estado='Pendiente'", (nombre, id))
     conn.commit()
     cur.close()
@@ -89,13 +76,18 @@ def asignar(id):
 
 @app.route('/completar/<int:id>', methods=['POST'])
 def completar(id):
-    rec_lista = request.form.get('recambio')
-    rec_manual = request.form.get('recambio_otro')
-    rec_final = f"OTROS: {rec_manual}" if rec_lista and "OTROS" in rec_lista else rec_lista
+    nombres = request.form.getlist('nombres[]')
+    cantidades = request.form.getlist('cantidades[]')
+    otro = request.form.get('recambio_otro')
+    
+    resumen = [f"{c}x {n}" for n, c in zip(nombres, cantidades) if n]
+    if otro: resumen.append(f"OTROS: {otro}")
+    
+    final_txt = ", ".join(resumen) if resumen else "mano de obra"
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("UPDATE incidencias SET estado='Realizado', recambio=%s WHERE id=%s", (rec_final, id))
+    cur.execute("UPDATE incidencias SET estado='Realizado', recambio=%s WHERE id=%s", (final_txt, id))
     conn.commit()
     cur.close()
     conn.close()
