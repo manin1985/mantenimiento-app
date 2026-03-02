@@ -63,6 +63,40 @@ def nuevo():
     conn.close()
     return redirect('/')
 
+@app.route('/editar/<int:id>', methods=['POST'])
+def editar(id):
+    if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
+    elemento, ubi, prio = request.form.get('elemento'), request.form.get('ubicacion'), request.form.get('prioridad')
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE incidencias SET elemento=%s, ubicacion=%s, prioridad=%s WHERE id=%s", (elemento, ubi, prio, id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect('/')
+
+@app.route('/borrar/<int:id>', methods=['POST'])
+def borrar(id):
+    if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM incidencias WHERE id=%s", (id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect('/')
+
+@app.route('/reactivar/<int:id>', methods=['POST'])
+def reactivar(id):
+    if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE incidencias SET estado='Pendiente', operario=NULL, recambio=NULL WHERE id=%s", (id,))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect('/historial')
+
 @app.route('/asignar/<int:id>', methods=['POST'])
 def asignar(id):
     nombre = request.form.get('operario')
@@ -79,12 +113,9 @@ def completar(id):
     nombres = request.form.getlist('nombres[]')
     cantidades = request.form.getlist('cantidades[]')
     otro = request.form.get('recambio_otro')
-    
     resumen = [f"{c}x {n}" for n, c in zip(nombres, cantidades) if n]
     if otro: resumen.append(f"OTROS: {otro}")
-    
     final_txt = ", ".join(resumen) if resumen else "mano de obra"
-    
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("UPDATE incidencias SET estado='Realizado', recambio=%s WHERE id=%s", (final_txt, id))
@@ -113,12 +144,9 @@ def exportar():
     out = BytesIO()
     with pd.ExcelWriter(out, engine='openpyxl') as writer: df.to_excel(writer, index=False)
     out.seek(0)
-    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="reporte_mantenimiento.xlsx", as_attachment=True)
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="reporte.xlsx", as_attachment=True)
 
 @app.route('/crear')
 def pagina_crear(): return render_template('crear.html')
-
-@app.route('/manifest.json')
-def manifest(): return send_from_directory(os.getcwd(), 'manifest.json')
 
 if __name__ == '__main__': app.run()
