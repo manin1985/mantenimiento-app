@@ -11,13 +11,17 @@
         .prio-Media { border-left: 10px solid #ffc107 !important; }
         .prio-Baja { border-left: 10px solid #0dcaf0 !important; }
         .en-proceso { background-color: #fffde7 !important; border-left: 10px solid #fd7e14 !important; }
-        .btn-manage { padding: 0.2rem 0.4rem; font-size: 0.8rem; }
     </style>
 </head>
 <body class="bg-light">
-    <nav class="navbar navbar-dark bg-primary sticky-top shadow-sm">
-        <div class="container-fluid"><span class="navbar-brand fw-bold">GESTIÓN EQUIPOS</span>
-        <a href="/historial" class="btn btn-outline-light btn-sm">Historial</a></div>
+    <nav class="navbar navbar-dark bg-primary sticky-top shadow">
+        <div class="container-fluid">
+            <span class="navbar-brand fw-bold">EQUIPOS</span>
+            <div class="d-flex gap-2">
+                <a href="/crear" class="btn btn-warning btn-sm fw-bold">+ NUEVO</a>
+                <a href="/historial" class="btn btn-outline-light btn-sm">Historial</a>
+            </div>
+        </div>
     </nav>
 
     <div class="container mt-3">
@@ -26,22 +30,22 @@
             <div class="card shadow-sm mb-3 border-0 rounded-3 {% if p[3] == 'En Proceso' %}en-proceso{% else %}prio-{{ p[6] }}{% endif %}">
                 <div class="card-body p-3">
                     <div class="d-flex justify-content-between align-items-start">
-                        <div>
-                            <h6 class="fw-bold text-dark mb-0">{{ p[1] }}</h6>
+                        <div style="max-width: 70%;">
+                            <h6 class="fw-bold text-dark mb-0 text-uppercase">{{ p[1] }}</h6>
                             <p class="text-secondary small mb-2">📍 {{ p[2] }}</p>
                         </div>
                         <div class="d-flex flex-column align-items-end">
                             <span class="badge {% if p[6]=='Alta' %}bg-danger{% elif p[6]=='Media' %}bg-warning text-dark{% else %}bg-info{% endif %} mb-2">{{ p[6] }}</span>
-                            <div class="d-flex gap-1">
-                                <button class="btn btn-outline-secondary btn-manage" onclick="abrirEditor('{{p[0]}}','{{p[1]}}','{{p[2]}}','{{p[6]}}')"><i class="bi bi-pencil"></i></button>
-                                <button class="btn btn-outline-danger btn-manage" onclick="confirmarBorrar('{{p[0]}}')"><i class="bi bi-trash"></i></button>
+                            <div class="btn-group">
+                                <button class="btn btn-sm btn-outline-secondary border-0" onclick="abrirEditor('{{p[0]}}','{{p[1]}}','{{p[2]}}','{{p[6]}}')"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-outline-danger border-0" onclick="confirmarBorrar('{{p[0]}}')"><i class="bi bi-trash"></i></button>
                             </div>
                         </div>
                     </div>
 
                     {% if p[3] == 'Pendiente' %}
                         <form action="/asignar/{{ p[0] }}" method="POST" class="input-group mt-2">
-                            <input type="text" name="operario" class="form-control form-control-sm" placeholder="Equipo..." required>
+                            <input type="text" name="operario" class="form-control form-control-sm" placeholder="Nombre equipo..." required>
                             <button class="btn btn-primary btn-sm px-3 fw-bold" type="submit">¡VOY!</button>
                         </form>
                     {% else %}
@@ -58,7 +62,7 @@
                                     <div class="col-2"><button type="button" class="btn btn-dark btn-sm w-100" onclick="addPieza('{{ p[0] }}')">+</button></div>
                                 </div>
                                 <div id="otro-box-{{ p[0] }}" style="display:none" class="mb-2">
-                                    <input type="text" id="manual-{{ p[0] }}" class="form-control form-control-sm" placeholder="Nombre pieza...">
+                                    <input type="text" id="manual-{{ p[0] }}" class="form-control form-control-sm" placeholder="¿Qué pieza es?">
                                 </div>
                                 <div id="lista-{{ p[0] }}" class="mb-2"></div>
                                 <form action="/completar/{{ p[0] }}" method="POST" id="form-{{ p[0] }}">
@@ -73,42 +77,11 @@
             </div>
             {% endfor %}
         {% else %}
-            <div class="alert alert-info text-center mt-4">Sin avisos pendientes.</div>
+            <div class="alert alert-info text-center mt-4">No hay avisos pendientes.</div>
         {% endif %}
     </div>
 
     <script>
-    function abrirEditor(id, elem, ubi, prio) {
-        const pin = prompt("Introduce PIN para EDITAR:");
-        if (pin === "{{PIN_SEGURIDAD}}") {
-            const nElem = prompt("Nuevo Elemento:", elem) || elem;
-            const nUbi = prompt("Nueva Ubicación:", ubi) || ubi;
-            const nPrio = prompt("Nueva Prioridad (Baja/Media/Alta):", prio) || prio;
-            
-            const form = document.createElement('form');
-            form.method = 'POST'; form.action = '/editar/' + id;
-            const params = {pin: pin, elemento: nElem, ubicacion: nUbi, prioridad: nPrio};
-            for (const key in params) {
-                const input = document.createElement('input');
-                input.type = 'hidden'; input.name = key; input.value = params[key];
-                form.appendChild(input);
-            }
-            document.body.appendChild(form); form.submit();
-        } else if (pin) { alert("PIN incorrecto"); }
-    }
-
-    function confirmarBorrar(id) {
-        const pin = prompt("Introduce PIN para BORRAR permanentemente:");
-        if (pin === "{{PIN_SEGURIDAD}}") {
-            const form = document.createElement('form');
-            form.method = 'POST'; form.action = '/borrar/' + id;
-            const input = document.createElement('input');
-            input.type = 'hidden'; input.name = 'pin'; input.value = pin;
-            form.appendChild(input);
-            document.body.appendChild(form); form.submit();
-        } else if (pin) { alert("PIN incorrecto"); }
-    }
-
     function checkOtros(s, id) { document.getElementById(id).style.display = s.value.includes("OTROS") ? "block" : "none"; }
 
     function addPieza(id) {
@@ -123,14 +96,45 @@
         if(s.value.includes("ninguno")) return;
 
         const row = document.createElement('div');
-        row.className = 'item-material bg-light border rounded p-1 mb-1 small d-flex justify-content-between';
-        row.innerHTML = `<span>${q.value}x ${s.value}</span><span class="text-danger fw-bold" onclick="this.parentElement.remove();">×</span>`;
+        row.className = 'bg-light border rounded p-1 mb-1 small d-flex justify-content-between align-items-center';
+        row.innerHTML = `<span><b>${q.value}x</b> ${s.value}</span><span class="text-danger fw-bold px-2" onclick="this.parentElement.remove();">×</span>`;
         l.appendChild(row);
 
         const hN = document.createElement('input'); hN.type='hidden'; hN.name='nombres[]'; hN.value=s.value;
         const hC = document.createElement('input'); hC.type='hidden'; hC.name='cantidades[]'; hC.value=q.value;
         inp.appendChild(hN); inp.appendChild(hC);
         q.value = 1;
+    }
+
+    function abrirEditor(id, elem, ubi, prio) {
+        const pin = prompt("PIN para EDITAR:");
+        if (pin === "2026") {
+            const nElem = prompt("Nuevo Elemento:", elem) || elem;
+            const nUbi = prompt("Nueva Ubicación:", ubi) || ubi;
+            const nPrio = prompt("Prioridad (Baja/Media/Alta):", prio) || prio;
+            
+            const form = document.createElement('form');
+            form.method = 'POST'; form.action = '/editar/' + id;
+            const params = {pin: pin, elemento: nElem, ubicacion: nUbi, prioridad: nPrio};
+            for (const key in params) {
+                const input = document.createElement('input');
+                input.type = 'hidden'; input.name = key; input.value = params[key];
+                form.appendChild(input);
+            }
+            document.body.appendChild(form); form.submit();
+        } else if (pin) { alert("PIN incorrecto"); }
+    }
+
+    function confirmarBorrar(id) {
+        const pin = prompt("PIN para BORRAR:");
+        if (pin === "2026") {
+            const form = document.createElement('form');
+            form.method = 'POST'; form.action = '/borrar/' + id;
+            const input = document.createElement('input');
+            input.type = 'hidden'; input.name = 'pin'; input.value = pin;
+            form.appendChild(input);
+            document.body.appendChild(form); form.submit();
+        } else if (pin) { alert("PIN incorrecto"); }
     }
     </script>
 </body>
