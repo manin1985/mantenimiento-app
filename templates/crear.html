@@ -8,27 +8,27 @@
 </head>
 <body class="bg-light">
     <div class="container mt-4">
-        <div class="card shadow">
-            <div class="card-header bg-primary text-white"><h5>NUEVA INCIDENCIA</h5></div>
+        <div class="card shadow border-0">
+            <div class="card-header bg-primary text-white fw-bold text-center">NUEVA INCIDENCIA</div>
             <div class="card-body">
                 <form action="/nuevo" method="POST">
                     <div class="mb-3">
-                        <label class="form-label">Tipo de Elemento</label>
+                        <label class="form-label fw-bold">Tipo de Elemento</label>
                         <select name="tipo" class="form-select" id="tipoSelect" onchange="togglePrio(this.value)">
                             <option value="Contenedor">Contenedor</option>
                             <option value="Papelera">Papelera</option>
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Elemento (ej: Contenedor 3200L)</label>
-                        <input type="text" name="elemento" class="form-control" required>
+                        <label class="form-label fw-bold">Descripción (ej: 3200L / Circular)</label>
+                        <input type="text" name="elemento" class="form-control" placeholder="Nombre o modelo..." required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Ubicación (Calle y Número)</label>
-                        <input type="text" name="ubicacion" class="form-control" required>
+                        <label class="form-label fw-bold">Ubicación</label>
+                        <input type="text" name="ubicacion" class="form-control" placeholder="Calle y número..." required>
                     </div>
                     <div class="mb-3" id="prioDiv">
-                        <label class="form-label">Prioridad</label>
+                        <label class="form-label fw-bold text-danger">Prioridad</label>
                         <select name="prioridad" class="form-select">
                             <option value="Baja">Baja</option>
                             <option value="Media">Media</option>
@@ -36,11 +36,11 @@
                         </select>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">PIN de Seguridad</label>
+                        <label class="form-label fw-bold">PIN Seguridad</label>
                         <input type="password" name="pin" class="form-control" required>
                     </div>
-                    <button type="submit" class="btn btn-primary w-100">CREAR AVISO</button>
-                    <a href="/" class="btn btn-link w-100 mt-2">Volver</a>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold py-2">CREAR AVISO</button>
+                    <a href="/" class="btn btn-outline-secondary w-100 mt-2">Cancelar y Volver</a>
                 </form>
             </div>
         </div>
