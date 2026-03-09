@@ -10,15 +10,15 @@
         .prio-Alta { border-left: 12px solid #dc3545 !important; }
         .prio-Media { border-left: 12px solid #ffc107 !important; }
         .prio-Baja { border-left: 12px solid #0dcaf0 !important; }
-        .tipo-Papelera { border-left: 12px solid #6c757d !important; background-color: #f1f3f5; }
+        .tipo-Papelera { border-left: 12px solid #adb5bd !important; background-color: #f8f9fa; }
         .en-proceso { background-color: #fffde7 !important; border-left: 12px solid #fd7e14 !important; }
     </style>
 </head>
 <body class="bg-light">
     <nav class="navbar navbar-dark bg-primary sticky-top shadow">
         <div class="container-fluid">
-            <span class="navbar-brand fw-bold">EQUIPOS</span>
-            <div class="d-flex gap-2"><a href="/crear" class="btn btn-warning btn-sm fw-bold">+ NUEVO</a><a href="/historial" class="btn btn-outline-light btn-sm">Historial</a></div>
+            <span class="navbar-brand fw-bold">GESTIÓN EQUIPOS</span>
+            <div class="d-flex gap-2"><a href="/crear" class="btn btn-warning btn-sm fw-bold shadow-sm">+ NUEVO</a><a href="/historial" class="btn btn-outline-light btn-sm">Historial</a></div>
         </div>
     </nav>
 
@@ -29,7 +29,8 @@
                 <div class="d-flex justify-content-between">
                     <div>
                         <h6 class="fw-bold mb-0 text-uppercase">{{ p[1] }}</h6>
-                        <small class="text-muted">{{ p[7] }} | 📍 {{ p[2] }}</small>
+                        <small class="badge {% if p[7]=='Papelera' %}bg-secondary{% else %}bg-dark{% endif %}">{{ p[7] }}</small>
+                        <small class="text-muted ms-2">📍 {{ p[2] }}</small>
                     </div>
                     <div class="btn-group">
                         <button class="btn btn-sm text-secondary" onclick="abrirEditor('{{p[0]}}','{{p[1]}}','{{p[2]}}')"><i class="bi bi-pencil"></i></button>
@@ -39,21 +40,21 @@
 
                 {% if p[3] == 'Pendiente' %}
                 <form action="/asignar/{{ p[0] }}" method="POST" class="input-group mt-2">
-                    <input type="text" name="operario" class="form-control form-control-sm" placeholder="Equipo..." required>
-                    <button class="btn btn-primary btn-sm" type="submit">¡VOY!</button>
+                    <input type="text" name="operario" class="form-control form-control-sm" placeholder="Nombre equipo..." required>
+                    <button class="btn btn-primary btn-sm px-3" type="submit">¡VOY!</button>
                 </form>
                 {% else %}
                 <div class="border-top pt-2 mt-2">
-                    <p class="small text-primary fw-bold mb-1">👷 {{ p[5] }}</p>
-                    <div class="bg-white p-2 rounded border">
+                    <p class="small text-primary fw-bold mb-2">👷 TRABAJANDO: {{ p[5] }}</p>
+                    <div class="bg-white p-2 rounded border shadow-sm">
                         {% if p[7] == 'Contenedor' %}
-                        <div class="mb-2">
-                            <label class="small fw-bold">FRACCIÓN:</label>
-                            <select name="fraccion" form="form-{{ p[0] }}" class="form-select form-select-sm" required>
-                                <option value="">Seleccionar...</option>
-                                <option value="RESTOS">RESTOS</option>
-                                <option value="ENVASES">ENVASES</option>
-                                <option value="PAPEL Y CARTON">PAPEL Y CARTÓN</option>
+                        <div class="mb-3">
+                            <label class="small fw-bold text-danger">MARCAR FRACCIÓN:</label>
+                            <select name="fraccion" form="form-{{ p[0] }}" class="form-select form-select-sm border-danger" required>
+                                <option value="">-- Seleccionar Fracción --</option>
+                                <option value="RESTOS">RESTOS (Gris)</option>
+                                <option value="ENVASES">ENVASES (Amarillo)</option>
+                                <option value="PAPEL Y CARTON">PAPEL Y CARTÓN (Azul)</option>
                             </select>
                         </div>
                         {% endif %}
@@ -66,12 +67,12 @@
                             <div class="col-2"><input type="number" id="qty-{{ p[0] }}" class="form-control form-control-sm" value="1" min="1"></div>
                             <div class="col-2"><button type="button" class="btn btn-dark btn-sm w-100" onclick="addPieza('{{ p[0] }}')">+</button></div>
                         </div>
-                        <div id="otro-box-{{ p[0] }}" style="display:none" class="mb-2"><input type="text" id="manual-{{ p[0] }}" class="form-control form-control-sm" placeholder="¿Qué pieza?"></div>
+                        <div id="otro-box-{{ p[0] }}" style="display:none" class="mb-2"><input type="text" id="manual-{{ p[0] }}" class="form-control form-control-sm" placeholder="Especificar pieza..."></div>
                         <div id="lista-{{ p[0] }}" class="mb-2"></div>
                         <form action="/completar/{{ p[0] }}" method="POST" id="form-{{ p[0] }}">
                             <div id="inputs-{{ p[0] }}"></div>
                             <input type="hidden" name="recambio_otro" id="hidden-otro-{{ p[0] }}">
-                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold shadow-sm">FINALIZAR</button>
+                            <button type="submit" class="btn btn-success btn-sm w-100 fw-bold py-2">CERRAR REPARACIÓN</button>
                         </form>
                     </div>
                 </div>
@@ -80,6 +81,7 @@
         </div>
         {% endfor %}
     </div>
+
     <script>
         function checkOtros(s, id) { document.getElementById(id).style.display = s.value.includes("OTROS") ? "block" : "none"; }
         function addPieza(id) {
@@ -87,9 +89,9 @@
             const inp = document.getElementById('inputs-'+id); const hM = document.getElementById('hidden-otro-'+id); const m = document.getElementById('manual-'+id);
             if(s.value.includes("OTROS")) { hM.value = m.value; m.disabled = true; s.disabled = true; return; }
             const row = document.createElement('div'); row.className = 'bg-light border rounded p-1 mb-1 small d-flex justify-content-between align-items-center';
-            row.innerHTML = `<span><b>${q.value}x</b> ${s.value}</span><span class="text-danger fw-bold px-2" onclick="this.parentElement.remove();">×</span>`;
+            row.innerHTML = `<span><b>${q.value}x</b> ${s.value}</span><span class="text-danger fw-bold px-2" style="cursor:pointer" onclick="this.parentElement.remove(); document.getElementById('in-${id}-${s.value}').remove();">×</span>`;
             l.appendChild(row);
-            const hN = document.createElement('input'); hN.type='hidden'; hN.name='nombres[]'; hN.value=s.value;
+            const hN = document.createElement('input'); hN.type='hidden'; hN.name='nombres[]'; hN.value=s.value; hN.id=`in-${id}-${s.value}`;
             const hC = document.createElement('input'); hC.type='hidden'; hC.name='cantidades[]'; hC.value=q.value;
             inp.appendChild(hN); inp.appendChild(hC); q.value = 1;
         }
@@ -98,7 +100,7 @@
                 const nElem = prompt("Nuevo Elemento:", elem) || elem;
                 const nUbi = prompt("Nueva Ubicación:", ubi) || ubi;
                 const form = document.createElement('form'); form.method = 'POST'; form.action = '/editar/' + id;
-                const p = {pin: pin, elemento: nElem, ubicacion: nUbi, prioridad: 'Media'};
+                const p = {pin: pin, elemento: nElem, ubicacion: nUbi};
                 for (const k in p) { const i = document.createElement('input'); i.type='hidden'; i.name=k; i.value=p[k]; form.appendChild(i); }
                 document.body.appendChild(form); form.submit();
             }
