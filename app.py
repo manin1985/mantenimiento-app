@@ -37,7 +37,25 @@ init_db()
 def index():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id, elemento, ubicacion, estado, fecha, operario, prioridad, tipo, fraccion FROM incidencias WHERE estado IN ('Pendiente', 'En Proceso') ORDER BY tipo ASC, CASE prioridad WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END, fecha DESC")
+    # NUEVA LÓGICA DE ORDEN: 
+    # 1. Contenedor Alta
+    # 2. Papelera
+    # 3. Contenedor Media
+    # 4. Contenedor Baja
+    query = """
+        SELECT id, elemento, ubicacion, estado, fecha, operario, prioridad, tipo, fraccion 
+        FROM incidencias 
+        WHERE estado IN ('Pendiente', 'En Proceso') 
+        ORDER BY 
+            CASE 
+                WHEN tipo = 'Contenedor' AND prioridad = 'Alta' THEN 1
+                WHEN tipo = 'Papelera' THEN 2
+                WHEN tipo = 'Contenedor' AND prioridad = 'Media' THEN 3
+                ELSE 4 
+            END ASC, 
+            fecha DESC
+    """
+    cur.execute(query)
     pendientes = cur.fetchall()
     cur.close()
     conn.close()
@@ -86,8 +104,12 @@ def exportar():
     df['fecha'] = pd.to_datetime(df['fecha']).dt.strftime('%d/%m/%Y %H:%M')
     out = BytesIO()
     with pd.ExcelWriter(out, engine='openpyxl') as writer:
-        df[df['tipo'] == 'Contenedor'].drop(columns=['tipo']).to_excel(writer, index=False, sheet_name='CONTENEDORES')
-        df[df['tipo'] == 'Papelera'].drop(columns=['tipo', 'fraccion', 'prioridad']).to_excel(writer, index=False, sheet_name='PAPELERAS')
+        df_cont = df[df['tipo'] == 'Contenedor'].drop(columns=['tipo'])
+        if not df_cont.empty:
+            df_cont.to_excel(writer, index=False, sheet_name='CONTENEDORES')
+        df_pap = df[df['tipo'] == 'Papelera'].drop(columns=['tipo', 'fraccion', 'prioridad'])
+        if not df_pap.empty:
+            df_pap.to_excel(writer, index=False, sheet_name='PAPELERAS')
     out.seek(0)
     return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="Reporte_Mantenimiento.xlsx", as_attachment=True)
 
@@ -134,7 +156,6 @@ def asignar(id):
     conn.close()
     return redirect('/')
 
-# ESTA ES LA PARTE CLAVE PARA RENDER
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
