@@ -19,11 +19,26 @@ def get_db_connection():
     conn = psycopg2.connect(DATABASE_URL)
     return conn
 
+# Función especial para usuarios "Free" de Render: Crea las columnas si no existen
+def init_db():
+    conn = get_db_connection()
+    cur = conn.cursor()
+    # Crear columnas nuevas si no existen
+    cur.execute("ALTER TABLE incidencias ADD COLUMN IF NOT EXISTS tipo VARCHAR(50) DEFAULT 'Contenedor';")
+    cur.execute("ALTER TABLE incidencias ADD COLUMN IF NOT EXISTS fraccion VARCHAR(50) DEFAULT 'N/A';")
+    conn.commit()
+    cur.close()
+    conn.close()
+
+# Ejecutamos la actualización al arrancar la app
+init_db()
+
 @app.route('/')
 def index():
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id, elemento, ubicacion, estado, fecha, operario, prioridad, tipo, fraccion FROM incidencias WHERE estado IN ('Pendiente', 'En Proceso') ORDER BY tipo DESC, CASE prioridad WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END, fecha DESC")
+    # Ordenamos: primero papeleras, luego contenedores por prioridad
+    cur.execute("SELECT id, elemento, ubicacion, estado, fecha, operario, prioridad, tipo, fraccion FROM incidencias WHERE estado IN ('Pendiente', 'En Proceso') ORDER BY tipo ASC, CASE prioridad WHEN 'Alta' THEN 1 WHEN 'Media' THEN 2 ELSE 3 END, fecha DESC")
     pendientes = cur.fetchall()
     cur.close()
     conn.close()
@@ -38,7 +53,7 @@ def nuevo():
     if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
     elemento = request.form.get('elemento')
     ubi = request.form.get('ubicacion')
-    tipo = request.form.get('tipo') # 'Contenedor' o 'Papelera'
+    tipo = request.form.get('tipo')
     prio = request.form.get('prioridad', 'Baja') if tipo == 'Contenedor' else 'Baja'
     ahora = datetime.now(madrid_tz)
     conn = get_db_connection()
@@ -70,21 +85,30 @@ def completar(id):
 @app.route('/exportar')
 def exportar():
     conn = get_db_connection()
-    df = pd.read_sql("SELECT tipo, elemento, fraccion, ubicacion, prioridad, fecha, operario, recambio FROM incidencias WHERE estado='Realizado'", conn)
+    # Extraemos todos los realizados
+    query = "SELECT tipo, fraccion, elemento, ubicacion, prioridad, fecha, operario, recambio FROM incidencias WHERE estado='Realizado' ORDER BY fecha DESC"
+    df = pd.read_sql(query, conn)
     conn.close()
+    
     if df.empty: return "No hay datos", 404
     
     df['fecha'] = pd.to_datetime(df['fecha']).dt.strftime('%d/%m/%Y %H:%M')
+    
+    # Separamos en dos DataFrames
     df_cont = df[df['tipo'] == 'Contenedor']
     df_pap = df[df['tipo'] == 'Papelera']
 
     out = BytesIO()
     with pd.ExcelWriter(out, engine='openpyxl') as writer:
-        if not df_cont.empty: df_cont.to_excel(writer, index=False, sheet_name='CONTENEDORES')
-        if not df_pap.empty: df_pap.to_excel(writer, index=False, sheet_name='PAPELERAS')
+        if not df_cont.empty:
+            df_cont.drop(columns=['tipo']).to_excel(writer, index=False, sheet_name='CONTENEDORES')
+        if not df_pap.empty:
+            df_pap.drop(columns=['tipo', 'fraccion', 'prioridad']).to_excel(writer, index=False, sheet_name='PAPELERAS')
+    
     out.seek(0)
-    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="Reporte_Final.xlsx", as_attachment=True)
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="Reporte_Mantenimiento.xlsx", as_attachment=True)
 
+# ... (Las rutas de editar, borrar y historial siguen igual)
 @app.route('/editar/<int:id>', methods=['POST'])
 def editar(id):
     if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
