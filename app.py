@@ -151,6 +151,8 @@ def asignar(id):
     cur.close()
     conn.close()
     return redirect('/')
-
 if __name__ == '__main__':
-    app.run()
+    # Render asigna un puerto dinámico, Flask debe usarlo
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host='0.0.0.0', port=port)
+
