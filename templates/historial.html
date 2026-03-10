@@ -3,42 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial</title>
+    <title>Historial de Reparaciones</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body class="bg-light">
-    <div class="container mt-3">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="fw-bold mb-0 text-primary">HISTORIAL DE TRABAJO</h5>
+    <div class="container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Historial (Últimos 100)</h2>
             <div>
-                <a href="/exportar" class="btn btn-success btn-sm me-1">Descargar Excel</a>
-                <a href="/" class="btn btn-secondary btn-sm">Volver</a>
+                <a href="/exportar" class="btn btn-success">Descargar Excel</a>
+                <a href="/" class="btn btn-secondary">Volver</a>
             </div>
         </div>
-        <div class="table-responsive bg-white rounded shadow-sm">
-            <table class="table table-sm table-hover align-middle mb-0" style="font-size: 0.82rem;">
+
+        <div class="table-responsive">
+            <table class="table table-bordered bg-white">
                 <thead class="table-dark">
-                    <tr><th>Fecha/Hora</th><th>Elemento/Ubicación</th><th>Fracción</th><th>Materiales</th></tr>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Elemento</th>
+                        <th>Tipo</th>
+                        <th>Recambios / Notas</th>
+                        <th>Acción</th>
+                    </tr>
                 </thead>
                 <tbody>
-                    {% for r in realizados %}
-                    <tr>
-                        <td class="text-nowrap">
-                            <span class="fw-bold">{{ r[4].strftime('%d/%m/%Y') }}</span><br>
-                            <small class="text-muted">{{ r[4].strftime('%H:%M') }}</small>
-                        </td>
+                    {% for reg in realizados %}
+                    <tr style="background-color: {{ '#e3f2fd' if reg[8] == 'Papelera' else '#ffffff' }};">
+                        <td>{{ reg[4].strftime('%d/%m %H:%M') }}</td>
+                        <td>{{ reg[1] }}<br><small class="text-muted">{{ reg[2] }}</small></td>
+                        <td><span class="badge {{ 'bg-info text-dark' if reg[8] == 'Papelera' else 'bg-secondary' }}">{{ reg[8] }}</span></td>
+                        <td>{{ reg[7] }}</td>
                         <td>
-                            <span class="badge {% if r[8]=='Papelera' %}bg-secondary{% else %}bg-info text-dark{% endif %}">{{ r[8] }}</span><br>
-                            <b class="text-uppercase">{{ r[1] }}</b><br>
-                            <small class="text-muted">📍 {{ r[2] }} | 👷 {{ r[5] }}</small>
+                            <form action="/borrar_historial/{{ reg[0] }}" method="POST" onsubmit="return confirmarBorrado(this);">
+                                <input type="hidden" name="pin" id="pin_{{ reg[0] }}">
+                                <button type="submit" class="btn btn-outline-danger btn-sm">Borrar</button>
+                            </form>
                         </td>
-                        <td class="fw-bold text-center">{{ r[9] }}</td>
-                        <td><small>{{ r[7] }}</small></td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
     </div>
+
+    <script>
+    function confirmarBorrado(form) {
+        const pin = prompt("Introduce el PIN para eliminar este registro:");
+        if (pin === "2026") {
+            form.querySelector('input[name="pin"]').value = pin;
+            return true;
+        } else if (pin !== null) {
+            alert("PIN Incorrecto");
+        }
+        return false;
+    }
+    </script>
 </body>
 </html>
