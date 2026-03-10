@@ -57,12 +57,25 @@ def editar(id):
 @app.route('/nuevo', methods=['POST'])
 def nuevo():
     if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
-    elemento, ubi, tipo = request.form.get('elemento'), request.form.get('ubicacion'), request.form.get('tipo')
+    elemento = request.form.get('elemento')
+    ubi = request.form.get('ubicacion')
+    tipo = request.form.get('tipo')
     prio = request.form.get('prioridad', 'Baja')
     ahora = datetime.now(madrid_tz)
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("INSERT INTO incidencias (elemento, ubicacion, prioridad, fecha, tipo, estado) VALUES (%s, %s, %s, %s, %s, 'Pendiente')", (elemento, ubi, prio, ahora, tipo))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect('/')
+
+@app.route('/asignar/<int:id>', methods=['POST'])
+def asignar(id):
+    nombre = request.form.get('operario')
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE incidencias SET estado='En Proceso', operario=%s WHERE id=%s", (nombre, id))
     conn.commit()
     cur.close()
     conn.close()
@@ -86,17 +99,6 @@ def completar(id):
     conn.close()
     return redirect('/')
 
-@app.route('/borrar_historial/<int:id>', methods=['POST'])
-def borrar_historial(id):
-    if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute("DELETE FROM incidencias WHERE id=%s", (id,))
-    conn.commit()
-    cur.close()
-    conn.close()
-    return redirect('/historial')
-
 @app.route('/historial')
 def historial():
     conn = get_db_connection()
@@ -107,16 +109,16 @@ def historial():
     conn.close()
     return render_template('historial.html', realizados=realizados)
 
-@app.route('/asignar/<int:id>', methods=['POST'])
-def asignar(id):
-    nombre = request.form.get('operario')
+@app.route('/borrar_historial/<int:id>', methods=['POST'])
+def borrar_historial(id):
+    if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("UPDATE incidencias SET estado='En Proceso', operario=%s WHERE id=%s", (nombre, id))
+    cur.execute("DELETE FROM incidencias WHERE id=%s", (id,))
     conn.commit()
     cur.close()
     conn.close()
-    return redirect('/')
+    return redirect('/historial')
 
 @app.route('/exportar')
 def exportar():
