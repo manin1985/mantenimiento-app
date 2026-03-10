@@ -8,22 +8,21 @@ import pytz
 
 app = Flask(__name__)
 
+# Configuración
 PIN_SEGURIDAD = "2026"
 DATABASE_URL = os.environ.get('DATABASE_URL')
 madrid_tz = pytz.timezone('Europe/Madrid')
 
-# Lista de recambios (abreviada para mejorar carga, puedes ampliarla)
-LISTA_RECAMBIOS = ["ninguno/mano de obra", "PEDAL2400", "PEDAL3200", "cubierta lateral izda", "cubierta lateral dcha", "OTROS (especificar)"]
+LISTA_RECAMBIOS = ["ninguno/mano de obra", "PEDAL2400", "PEDAL3200", "cubierta lateral izda", "cubierta lateral dcha", "estructural izda", "estructural dcha", "CONJUNTO EJE PEDAL", "SIRGA", "CABLE 2400", "CABLE 3200", "CHAPA ESPADA", "espada 2400", "espada 3200", "SUBCONJUNTO EMPUJADOR", "TAPA SUPERIOR BRAZO", "ENLACE PEDAL2400", "ENLACE PEDAL 3200", "ENV t.calle3200", "ENV t.calle2200", "ENV t.usuario3200", "ENV t.usuario2200", "ENV conjunto tapa3200", "ENV conjunto tapa2400", "PYC t.calle3200", "PYC t.calle2200", "PYC t.usuario3200", "PYC t.usuario2200", "PYC conjunto tapa3200", "PYC conjunto tapa2400", "RSU t.calle2200", "RSU t.calle3200", "RSU t.usuario3200", "RSU t.usuario2200", "RSU esquina dcha", "RSU esquina izda", "conjunto espada izda2400", "conjunto espada dcha2400", "conjunto espada izda3200", "conjunto espada dcha3200", "OTROS (especificar)"]
 
 def get_db_connection():
-    # Añadimos parámetros para evitar que la conexión se quede "colgada"
-    return psycopg2.connect(DATABASE_URL, connect_timeout=5, options="-c statement_timeout=5000")
+    return psycopg2.connect(DATABASE_URL, connect_timeout=10)
 
 @app.route('/')
 def index():
     conn = get_db_connection()
     cur = conn.cursor()
-    # Orden optimizado según tu petición anterior
+    # ORDEN: 1. Contenedor Alta, 2. Papelera, 3. Contenedor Media, 4. Contenedor Baja
     query = """
         SELECT id, elemento, ubicacion, estado, fecha, operario, prioridad, tipo, fraccion 
         FROM incidencias 
@@ -47,7 +46,7 @@ def index():
 def nuevo():
     if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
     elemento, ubi, tipo = request.form.get('elemento'), request.form.get('ubicacion'), request.form.get('tipo')
-    prio = request.form.get('prioridad', 'Baja') if tipo == 'Contenedor' else 'Baja'
+    prio = request.form.get('prioridad', 'Baja')
     ahora = datetime.now(madrid_tz)
     conn = get_db_connection()
     cur = conn.cursor()
@@ -87,7 +86,6 @@ def exportar():
     out.seek(0)
     return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="Reporte.xlsx", as_attachment=True)
 
-# Rutas básicas para evitar errores de carga
 @app.route('/crear')
 def pagina_crear(): return render_template('crear.html')
 
@@ -107,6 +105,17 @@ def asignar(id):
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("UPDATE incidencias SET estado='En Proceso', operario=%s WHERE id=%s", (nombre, id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect('/')
+
+@app.route('/borrar/<int:id>', methods=['POST'])
+def borrar(id):
+    if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM incidencias WHERE id=%s", (id,))
     conn.commit()
     cur.close()
     conn.close()
