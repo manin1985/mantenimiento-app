@@ -16,50 +16,51 @@ madrid_tz = pytz.timezone('Europe/Madrid')
 LISTA_RECAMBIOS = ["ninguno/mano de obra", "PEDAL2400", "PEDAL3200", "cubierta lateral izda", "cubierta lateral dcha", "estructural izda", "estructural dcha", "CONJUNTO EJE PEDAL", "SIRGA", "CABLE 2400", "CABLE 3200", "CHAPA ESPADA", "espada 2400", "espada 3200", "SUBCONJUNTO EMPUJADOR", "TAPA SUPERIOR BRAZO", "ENLACE PEDAL2400", "ENLACE PEDAL 3200", "ENV t.calle3200", "ENV t.calle2200", "ENV t.usuario3200", "ENV t.usuario2200", "ENV conjunto tapa3200", "ENV conjunto tapa2400", "PYC t.calle3200", "PYC t.calle2200", "PYC t.usuario3200", "PYC t.usuario2200", "PYC conjunto tapa3200", "PYC conjunto tapa2400", "RSU t.calle2200", "RSU t.calle3200", "RSU t.usuario3200", "RSU t.usuario2200", "RSU esquina dcha", "RSU esquina izda", "conjunto espada izda2400", "conjunto espada dcha2400", "conjunto espada izda3200", "conjunto espada dcha3200", "OTROS (especificar)"]
 
 def get_db_connection():
-    conn = psycopg2.connect(DATABASE_URL)
-    return conn
+    # Aumentamos el tiempo de espera para evitar cortes
+    return psycopg2.connect(DATABASE_URL, connect_timeout=10)
 
 def init_db():
     try:
         conn = get_db_connection()
         cur = conn.cursor()
+        # Verificamos y añadimos columnas una a una con control de errores
         cur.execute("ALTER TABLE incidencias ADD COLUMN IF NOT EXISTS tipo VARCHAR(50) DEFAULT 'Contenedor';")
         cur.execute("ALTER TABLE incidencias ADD COLUMN IF NOT EXISTS fraccion VARCHAR(50) DEFAULT 'N/A';")
         conn.commit()
         cur.close()
         conn.close()
+        print("Base de datos actualizada correctamente.")
     except Exception as e:
-        print(f"Error inicializando DB: {e}")
+        print(f"Aviso en DB (puede que ya existan las columnas): {e}")
 
+# Ejecutar inicialización
 init_db()
 
 @app.route('/')
 def index():
-    conn = get_db_connection()
-    cur = conn.cursor()
-    # NUEVA LÓGICA DE ORDEN: 
-    # 1. Contenedor Alta
-    # 2. Papelera
-    # 3. Contenedor Media
-    # 4. Contenedor Baja
-    query = """
-        SELECT id, elemento, ubicacion, estado, fecha, operario, prioridad, tipo, fraccion 
-        FROM incidencias 
-        WHERE estado IN ('Pendiente', 'En Proceso') 
-        ORDER BY 
-            CASE 
-                WHEN tipo = 'Contenedor' AND prioridad = 'Alta' THEN 1
-                WHEN tipo = 'Papelera' THEN 2
-                WHEN tipo = 'Contenedor' AND prioridad = 'Media' THEN 3
-                ELSE 4 
-            END ASC, 
-            fecha DESC
-    """
-    cur.execute(query)
-    pendientes = cur.fetchall()
-    cur.close()
-    conn.close()
-    return render_template('index.html', pendientes=pendientes, recambios=LISTA_RECAMBIOS)
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        query = """
+            SELECT id, elemento, ubicacion, estado, fecha, operario, prioridad, tipo, fraccion 
+            FROM incidencias 
+            WHERE estado IN ('Pendiente', 'En Proceso') 
+            ORDER BY 
+                CASE 
+                    WHEN tipo = 'Contenedor' AND prioridad = 'Alta' THEN 1
+                    WHEN tipo = 'Papelera' THEN 2
+                    WHEN tipo = 'Contenedor' AND prioridad = 'Media' THEN 3
+                    ELSE 4 
+                END ASC, 
+                fecha DESC
+        """
+        cur.execute(query)
+        pendientes = cur.fetchall()
+        cur.close()
+        conn.close()
+        return render_template('index.html', pendientes=pendientes, recambios=LISTA_RECAMBIOS)
+    except Exception as e:
+        return f"Error al conectar con la base de datos: {e}", 500
 
 @app.route('/crear')
 def pagina_crear():
@@ -97,21 +98,24 @@ def completar(id):
 
 @app.route('/exportar')
 def exportar():
-    conn = get_db_connection()
-    df = pd.read_sql("SELECT tipo, fraccion, elemento, ubicacion, prioridad, fecha, operario, recambio FROM incidencias WHERE estado='Realizado' ORDER BY fecha DESC", conn)
-    conn.close()
-    if df.empty: return "No hay datos", 404
-    df['fecha'] = pd.to_datetime(df['fecha']).dt.strftime('%d/%m/%Y %H:%M')
-    out = BytesIO()
-    with pd.ExcelWriter(out, engine='openpyxl') as writer:
-        df_cont = df[df['tipo'] == 'Contenedor'].drop(columns=['tipo'])
-        if not df_cont.empty:
-            df_cont.to_excel(writer, index=False, sheet_name='CONTENEDORES')
-        df_pap = df[df['tipo'] == 'Papelera'].drop(columns=['tipo', 'fraccion', 'prioridad'])
-        if not df_pap.empty:
-            df_pap.to_excel(writer, index=False, sheet_name='PAPELERAS')
-    out.seek(0)
-    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="Reporte_Mantenimiento.xlsx", as_attachment=True)
+    try:
+        conn = get_db_connection()
+        df = pd.read_sql("SELECT tipo, fraccion, elemento, ubicacion, prioridad, fecha, operario, recambio FROM incidencias WHERE estado='Realizado' ORDER BY fecha DESC", conn)
+        conn.close()
+        if df.empty: return "No hay datos", 404
+        df['fecha'] = pd.to_datetime(df['fecha']).dt.strftime('%d/%m/%Y %H:%M')
+        out = BytesIO()
+        with pd.ExcelWriter(out, engine='openpyxl') as writer:
+            df_cont = df[df['tipo'] == 'Contenedor'].drop(columns=['tipo'])
+            if not df_cont.empty:
+                df_cont.to_excel(writer, index=False, sheet_name='CONTENEDORES')
+            df_pap = df[df['tipo'] == 'Papelera'].drop(columns=['tipo', 'fraccion', 'prioridad'])
+            if not df_pap.empty:
+                df_pap.to_excel(writer, index=False, sheet_name='PAPELERAS')
+        out.seek(0)
+        return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="Reporte_Mantenimiento.xlsx", as_attachment=True)
+    except Exception as e:
+        return f"Error al exportar: {e}", 500
 
 @app.route('/editar/<int:id>', methods=['POST'])
 def editar(id):
@@ -157,5 +161,5 @@ def asignar(id):
     return redirect('/')
 
 if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
+    port = int(os.environ.get("PORT", 10000))
     app.run(host='0.0.0.0', port=port)
