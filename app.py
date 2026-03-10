@@ -41,6 +41,19 @@ def index():
     conn.close()
     return render_template('index.html', pendientes=pendientes, recambios=LISTA_RECAMBIOS)
 
+@app.route('/editar/<int:id>', methods=['POST'])
+def editar(id):
+    if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
+    elemento = request.form.get('elemento')
+    ubicacion = request.form.get('ubicacion')
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("UPDATE incidencias SET elemento=%s, ubicacion=%s WHERE id=%s", (elemento, ubicacion, id))
+    conn.commit()
+    cur.close()
+    conn.close()
+    return redirect('/')
+
 @app.route('/nuevo', methods=['POST'])
 def nuevo():
     if request.form.get('pin') != PIN_SEGURIDAD: return "PIN Incorrecto", 403
@@ -84,25 +97,6 @@ def borrar_historial(id):
     conn.close()
     return redirect('/historial')
 
-@app.route('/exportar')
-def exportar():
-    conn = get_db_connection()
-    df = pd.read_sql("SELECT tipo, fraccion, elemento, ubicacion, prioridad, fecha, operario, recambio FROM incidencias WHERE estado='Realizado' ORDER BY fecha DESC", conn)
-    conn.close()
-    if df.empty: return "No hay datos", 404
-    df['fecha'] = pd.to_datetime(df['fecha']).dt.strftime('%d/%m/%Y %H:%M')
-    out = BytesIO()
-    with pd.ExcelWriter(out, engine='openpyxl') as writer:
-        df_cont = df[df['tipo'] == 'Contenedor'].drop(columns=['tipo'])
-        if not df_cont.empty: df_cont.to_excel(writer, index=False, sheet_name='CONTENEDORES')
-        df_pap = df[df['tipo'] == 'Papelera'].drop(columns=['tipo', 'fraccion', 'prioridad'])
-        if not df_pap.empty: df_pap.to_excel(writer, index=False, sheet_name='PAPELERAS')
-    out.seek(0)
-    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="Reporte.xlsx", as_attachment=True)
-
-@app.route('/crear')
-def pagina_crear(): return render_template('crear.html')
-
 @app.route('/historial')
 def historial():
     conn = get_db_connection()
@@ -123,6 +117,25 @@ def asignar(id):
     cur.close()
     conn.close()
     return redirect('/')
+
+@app.route('/exportar')
+def exportar():
+    conn = get_db_connection()
+    df = pd.read_sql("SELECT tipo, fraccion, elemento, ubicacion, prioridad, fecha, operario, recambio FROM incidencias WHERE estado='Realizado' ORDER BY fecha DESC", conn)
+    conn.close()
+    if df.empty: return "No hay datos", 404
+    df['fecha'] = pd.to_datetime(df['fecha']).dt.strftime('%d/%m/%Y %H:%M')
+    out = BytesIO()
+    with pd.ExcelWriter(out, engine='openpyxl') as writer:
+        df_cont = df[df['tipo'] == 'Contenedor'].drop(columns=['tipo'])
+        if not df_cont.empty: df_cont.to_excel(writer, index=False, sheet_name='CONTENEDORES')
+        df_pap = df[df['tipo'] == 'Papelera'].drop(columns=['tipo', 'fraccion', 'prioridad'])
+        if not df_pap.empty: df_pap.to_excel(writer, index=False, sheet_name='PAPELERAS')
+    out.seek(0)
+    return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="Reporte.xlsx", as_attachment=True)
+
+@app.route('/crear')
+def pagina_crear(): return render_template('crear.html')
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 10000))
