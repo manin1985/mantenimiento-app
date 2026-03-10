@@ -3,16 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Mantenimiento - Tiempo Real</title>
+    <title>Panel de Mantenimiento</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .card-incidencia { border-radius: 12px; margin-bottom: 15px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .prioridad-Alta { border-left: 8px solid #dc3545; }
         .prioridad-Media { border-left: 8px solid #ffc107; }
         .prioridad-Baja { border-left: 8px solid #198754; }
-        .badge-papelera { background-color: #0dcaf0; color: #000; }
         .en-proceso { background-color: #fff3cd !important; border: 2px solid #ffc107; }
-        .btn-voy { font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body class="bg-light">
@@ -40,10 +38,8 @@
                         </span>
                     </div>
                     <div class="text-end">
+                        <button class="btn btn-outline-secondary btn-sm mb-2" onclick="editarAviso({{ p[0] }}, '{{ p[1] }}', '{{ p[2] }}')">✏️</button>
                         <small class="d-block text-muted">{{ p[4].strftime('%H:%M') }}</small>
-                        <span class="badge {{ 'bg-danger' if p[6] == 'Alta' else 'bg-warning text-dark' if p[6] == 'Media' else 'bg-success' }}">
-                            {{ p[6] }}
-                        </span>
                     </div>
                 </div>
 
@@ -51,16 +47,12 @@
 
                 <div class="d-grid">
                     {% if p[3] == 'Pendiente' %}
-                        <button class="btn btn-warning btn-voy shadow-sm" onclick="voyYo({{ p[0] }})">
-                            🚀 ¡VOY YO!
-                        </button>
+                        <button class="btn btn-warning shadow-sm fw-bold" onclick="voyYo({{ p[0] }})">🚀 ¡VOY YO!</button>
                     {% else %}
                         <div class="text-center mb-2">
-                            <span class="text-dark">👷 <strong>{{ p[5] }}</strong> está en ello...</span>
+                            <span>👷 <strong>{{ p[5] }}</strong> está en ello...</span>
                         </div>
-                        <button class="btn btn-success btn-voy" onclick="abrirModalCompletar({{ p[0] }}, '{{ p[7] }}')">
-                            ✅ TERMINAR TRABAJO
-                        </button>
+                        <button class="btn btn-success fw-bold" onclick="abrirModalCompletar({{ p[0] }}, '{{ p[7] }}')">✅ TERMINAR TRABAJO</button>
                     {% endif %}
                 </div>
             </div>
@@ -69,16 +61,32 @@
     </div>
 
     <script>
+        function editarAviso(id, elemento, ubi) {
+            const pin = prompt("Introduce el PIN para editar:");
+            if (pin === "2026") {
+                const nElemento = prompt("Nuevo nombre del elemento:", elemento);
+                const nUbi = prompt("Nueva ubicación:", ubi);
+                if (nElemento && nUbi) {
+                    const form = document.createElement('form');
+                    form.method = 'POST';
+                    form.action = '/editar/' + id;
+                    form.innerHTML = `<input type="hidden" name="pin" value="${pin}">
+                                      <input type="hidden" name="elemento" value="${nElemento}">
+                                      <input type="hidden" name="ubicacion" value="${nUbi}">`;
+                    document.body.appendChild(form);
+                    form.submit();
+                }
+            } else if (pin) { alert("PIN Incorrecto"); }
+        }
+
         function voyYo(id) {
-            const nombre = prompt("¿Quién eres? (Nombre del equipo/operario)");
+            const nombre = prompt("¿Quién eres?");
             if (nombre) {
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = '/asignar/' + id;
                 const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'operario';
-                input.value = nombre;
+                input.type = 'hidden'; i.name = 'operario'; i.value = nombre;
                 form.appendChild(input);
                 document.body.appendChild(form);
                 form.submit();
@@ -87,10 +95,8 @@
 
         function abrirModalCompletar(id, tipo) {
             document.getElementById('id_completar').value = id;
-            const divFraccion = document.getElementById('div_fraccion');
-            divFraccion.style.display = (tipo === 'Contenedor') ? 'block' : 'none';
-            const modal = new bootstrap.Modal(document.getElementById('modalFinalizar'));
-            modal.show();
+            document.getElementById('div_fraccion').style.display = (tipo === 'Contenedor') ? 'block' : 'none';
+            new bootstrap.Modal(document.getElementById('modalFinalizar')).show();
         }
     </script>
 
@@ -99,59 +105,30 @@
             <div class="modal-content">
                 <form id="formFinalizar" method="POST">
                     <input type="hidden" name="id" id="id_completar">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Finalizar Trabajo</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
+                    <div class="modal-header"><h5 class="modal-title">Finalizar Trabajo</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
                     <div class="modal-body">
                         <div id="div_fraccion" class="mb-3" style="display: none;">
-                            <label class="form-label text-primary"><strong>Fracción del Contenedor:</strong></label>
+                            <label class="form-label">Fracción del Contenedor:</label>
                             <select name="fraccion" class="form-select border-primary">
-                                <option value="RSU">RSU</option>
-                                <option value="Envases">Envases</option>
-                                <option value="Papel/Cartón">Papel/Cartón</option>
-                                <option value="Vidrio">Vidrio</option>
-                                <option value="Orgánica">Orgánica</option>
-                                <option value="N/A" selected>N/A</option>
+                                <option value="RSU">RSU</option><option value="Envases">Envases</option><option value="Papel/Cartón">Papel/Cartón</option><option value="Vidrio">Vidrio</option><option value="Orgánica">Orgánica</option><option value="N/A" selected>N/A</option>
                             </select>
                         </div>
-                        <h6>Recambios utilizados:</h6>
+                        <h6>Recambios:</h6>
                         <div id="contenedor_recambios">
                             <div class="row g-2 mb-2">
-                                <div class="col-8">
-                                    <select name="nombres[]" class="form-select form-select-sm">
-                                        <option value="">-- Seleccionar --</option>
-                                        {% for r in recambios %}
-                                        <option value="{{ r }}">{{ r }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div class="col-4">
-                                    <input type="number" name="cantidades[]" class="form-control form-control-sm" placeholder="Cant.">
-                                </div>
+                                <div class="col-8"><select name="nombres[]" class="form-select form-select-sm"><option value="">-- Seleccionar --</option>{% for r in recambios %}<option value="{{ r }}">{{ r }}</option>{% endfor %}</select></div>
+                                <div class="col-4"><input type="number" name="cantidades[]" class="form-control form-control-sm" placeholder="Cant."></div>
                             </div>
                         </div>
                         <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="agregarRecambio()">+ Añadir otro</button>
-                        <div class="mb-3">
-                            <label class="form-label">Otros recambios/Notas:</label>
-                            <textarea name="recambio_otro" class="form-control" rows="2"></textarea>
-                        </div>
+                        <div class="mb-3"><label class="form-label">Notas:</label><textarea name="recambio_otro" class="form-control" rows="2"></textarea></div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-success" onclick="this.form.action='/completar/'+document.getElementById('id_completar').value">Guardar y Cerrar</button>
-                    </div>
+                    <div class="modal-footer"><button type="submit" class="btn btn-success" onclick="this.form.action='/completar/'+document.getElementById('id_completar').value">Guardar</button></div>
                 </form>
             </div>
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>
-        function agregarRecambio() {
-            const container = document.getElementById('contenedor_recambios');
-            const nuevo = container.firstElementChild.cloneNode(true);
-            nuevo.querySelectorAll('input').forEach(i => i.value = '');
-            container.appendChild(nuevo);
-        }
-    </script>
+    <script>function agregarRecambio() { const container = document.getElementById('contenedor_recambios'); const nuevo = container.firstElementChild.cloneNode(true); nuevo.querySelectorAll('input').forEach(i => i.value = ''); container.appendChild(nuevo); }</script>
 </body>
 </html>
