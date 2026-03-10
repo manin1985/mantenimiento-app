@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Mantenimiento</title>
+    <title>Mantenimiento - Panel</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         .card-incidencia { border-radius: 12px; margin-bottom: 15px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -38,7 +38,7 @@
                         </span>
                     </div>
                     <div class="text-end">
-                        <button class="btn btn-outline-secondary btn-sm mb-2" onclick="editarAviso({{ p[0] }}, '{{ p[1] }}', '{{ p[2] }}')">✏️</button>
+                        <button class="btn btn-outline-secondary btn-sm mb-2" onclick="editarAviso({{ p[0] }}, '{{ p[1] }}', '{{ p[2] }}')">⚙️ MODIFICAR</button>
                         <small class="d-block text-muted">{{ p[4].strftime('%H:%M') }}</small>
                     </div>
                 </div>
@@ -60,46 +60,6 @@
         {% endfor %}
     </div>
 
-    <script>
-        function editarAviso(id, elemento, ubi) {
-            const pin = prompt("Introduce el PIN para editar:");
-            if (pin === "2026") {
-                const nElemento = prompt("Nuevo nombre del elemento:", elemento);
-                const nUbi = prompt("Nueva ubicación:", ubi);
-                if (nElemento && nUbi) {
-                    const form = document.createElement('form');
-                    form.method = 'POST';
-                    form.action = '/editar/' + id;
-                    form.innerHTML = `<input type="hidden" name="pin" value="${pin}">
-                                      <input type="hidden" name="elemento" value="${nElemento}">
-                                      <input type="hidden" name="ubicacion" value="${nUbi}">`;
-                    document.body.appendChild(form);
-                    form.submit();
-                }
-            } else if (pin) { alert("PIN Incorrecto"); }
-        }
-
-        function voyYo(id) {
-            const nombre = prompt("¿Quién eres?");
-            if (nombre) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '/asignar/' + id;
-                const input = document.createElement('input');
-                input.type = 'hidden'; i.name = 'operario'; i.value = nombre;
-                form.appendChild(input);
-                document.body.appendChild(form);
-                form.submit();
-            }
-        }
-
-        function abrirModalCompletar(id, tipo) {
-            document.getElementById('id_completar').value = id;
-            document.getElementById('div_fraccion').style.display = (tipo === 'Contenedor') ? 'block' : 'none';
-            new bootstrap.Modal(document.getElementById('modalFinalizar')).show();
-        }
-    </script>
-
     <div class="modal fade" id="modalFinalizar" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -109,7 +69,7 @@
                     <div class="modal-body">
                         <div id="div_fraccion" class="mb-3" style="display: none;">
                             <label class="form-label">Fracción del Contenedor:</label>
-                            <select name="fraccion" class="form-select border-primary">
+                            <select name="fraccion" class="form-select">
                                 <option value="RSU">RSU</option><option value="Envases">Envases</option><option value="Papel/Cartón">Papel/Cartón</option><option value="Vidrio">Vidrio</option><option value="Orgánica">Orgánica</option><option value="N/A" selected>N/A</option>
                             </select>
                         </div>
@@ -128,7 +88,43 @@
             </div>
         </div>
     </div>
+
+    <script>
+        function editarAviso(id, elActual, ubiActual) {
+            const pin = prompt("Introduce el PIN para editar:");
+            if (pin === "2026") {
+                const nEl = prompt("Nuevo nombre:", elActual);
+                const nUbi = prompt("Nueva ubicación:", ubiActual);
+                if (nEl && nUbi) {
+                    const f = document.createElement('form'); f.method = 'POST'; f.action = '/editar/' + id;
+                    f.innerHTML = `<input type="hidden" name="pin" value="${pin}"><input type="hidden" name="elemento" value="${nEl}"><input type="hidden" name="ubicacion" value="${nUbi}">`;
+                    document.body.appendChild(f); f.submit();
+                }
+            } else if (pin) alert("PIN Incorrecto");
+        }
+
+        function voyYo(id) {
+            const n = prompt("¿Quién eres?");
+            if (n) {
+                const f = document.createElement('form'); f.method = 'POST'; f.action = '/asignar/' + id;
+                f.innerHTML = `<input type="hidden" name="operario" value="${n}">`;
+                document.body.appendChild(f); f.submit();
+            }
+        }
+
+        function abrirModalCompletar(id, tipo) {
+            document.getElementById('id_completar').value = id;
+            document.getElementById('div_fraccion').style.display = (tipo === 'Contenedor') ? 'block' : 'none';
+            new bootstrap.Modal(document.getElementById('modalFinalizar')).show();
+        }
+
+        function agregarRecambio() {
+            const c = document.getElementById('contenedor_recambios');
+            const n = c.firstElementChild.cloneNode(true);
+            n.querySelectorAll('input').forEach(i => i.value = '');
+            c.appendChild(n);
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script>function agregarRecambio() { const container = document.getElementById('contenedor_recambios'); const nuevo = container.firstElementChild.cloneNode(true); nuevo.querySelectorAll('input').forEach(i => i.value = ''); container.appendChild(nuevo); }</script>
 </body>
 </html>
