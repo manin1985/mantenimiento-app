@@ -8,7 +8,6 @@ import pytz
 
 app = Flask(__name__)
 
-# Configuración básica
 PIN_SEGURIDAD = "2026"
 DATABASE_URL = os.environ.get('DATABASE_URL')
 madrid_tz = pytz.timezone('Europe/Madrid')
@@ -16,14 +15,11 @@ madrid_tz = pytz.timezone('Europe/Madrid')
 LISTA_RECAMBIOS = ["ninguno/mano de obra", "PEDAL2400", "PEDAL3200", "cubierta lateral izda", "cubierta lateral dcha", "estructural izda", "estructural dcha", "CONJUNTO EJE PEDAL", "SIRGA", "CABLE 2400", "CABLE 3200", "CHAPA ESPADA", "espada 2400", "espada 3200", "SUBCONJUNTO EMPUJADOR", "TAPA SUPERIOR BRAZO", "ENLACE PEDAL2400", "ENLACE PEDAL 3200", "ENV t.calle3200", "ENV t.calle2200", "ENV t.usuario3200", "ENV t.usuario2200", "ENV conjunto tapa3200", "ENV conjunto tapa2400", "PYC t.calle3200", "PYC t.calle2200", "PYC t.usuario3200", "PYC t.usuario2200", "PYC conjunto tapa3200", "PYC conjunto tapa2400", "RSU t.calle2200", "RSU t.calle3200", "RSU t.usuario3200", "RSU t.usuario2200", "RSU esquina dcha", "RSU esquina izda", "conjunto espada izda2400", "conjunto espada dcha2400", "conjunto espada izda3200", "conjunto espada dcha3200", "OTROS (especificar)"]
 
 def get_db_connection():
-    # Conexión optimizada con timeout corto para no bloquear la app
-    return psycopg2.connect(DATABASE_URL, connect_timeout=5)
+    return psycopg2.connect(DATABASE_URL, connect_timeout=10)
 
-# Función de reparación automática silenciosa
 @app.before_request
-def initial_setup():
-    # Solo se ejecuta una vez al arrancar para no ralentizar
-    if not hasattr(app, '_db_initialized'):
+def check_db():
+    if not hasattr(app, '_db_ok'):
         try:
             conn = get_db_connection()
             cur = conn.cursor()
@@ -32,9 +28,9 @@ def initial_setup():
             conn.commit()
             cur.close()
             conn.close()
-            app._db_initialized = True
+            app._db_ok = True
         except:
-            pass # Si ya existen las columnas, ignoramos el error
+            app._db_ok = True
 
 @app.route('/')
 def index():
@@ -98,10 +94,8 @@ def exportar():
     df['fecha'] = pd.to_datetime(df['fecha']).dt.strftime('%d/%m/%Y %H:%M')
     out = BytesIO()
     with pd.ExcelWriter(out, engine='openpyxl') as writer:
-        df_cont = df[df['tipo'] == 'Contenedor'].drop(columns=['tipo'])
-        if not df_cont.empty: df_cont.to_excel(writer, index=False, sheet_name='CONTENEDORES')
-        df_pap = df[df['tipo'] == 'Papelera'].drop(columns=['tipo', 'fraccion', 'prioridad'])
-        if not df_pap.empty: df_pap.to_excel(writer, index=False, sheet_name='PAPELERAS')
+        df[df['tipo'] == 'Contenedor'].drop(columns=['tipo']).to_excel(writer, index=False, sheet_name='CONTENEDORES')
+        df[df['tipo'] == 'Papelera'].drop(columns=['tipo', 'fraccion', 'prioridad']).to_excel(writer, index=False, sheet_name='PAPELERAS')
     out.seek(0)
     return send_file(out, mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', download_name="Reporte.xlsx", as_attachment=True)
 
