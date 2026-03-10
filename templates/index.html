@@ -3,85 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Incidencias - Mantenimiento</title>
+    <title>Panel de Mantenimiento - Tiempo Real</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        .prioridad-alta { border-left: 5px solid #dc3545; }
-        .prioridad-media { border-left: 5px solid #ffc107; }
-        .prioridad-baja { border-left: 5px solid #198754; }
-        .fila-papelera { background-color: #e3f2fd !important; }
+        .card-incidencia { border-radius: 12px; margin-bottom: 15px; border: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .prioridad-Alta { border-left: 8px solid #dc3545; }
+        .prioridad-Media { border-left: 8px solid #ffc107; }
+        .prioridad-Baja { border-left: 8px solid #198754; }
         .badge-papelera { background-color: #0dcaf0; color: #000; }
+        .en-proceso { background-color: #fff3cd !important; border: 2px solid #ffc107; }
+        .btn-voy { font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
     </style>
 </head>
 <body class="bg-light">
-    <nav class="navbar navbar-dark bg-dark mb-4">
+    <nav class="navbar navbar-dark bg-dark sticky-top mb-3">
         <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1">🛠️ Sistema de Mantenimiento</span>
+            <span class="navbar-brand mb-0 h1">🛠️ EQUIPO MANTENIMIENTO</span>
             <div>
-                <a href="/crear" class="btn btn-primary btn-sm">Nueva Incidencia</a>
-                <a href="/historial" class="btn btn-outline-light btn-sm">Historial</a>
+                <a href="/crear" class="btn btn-primary btn-sm">+ NUEVO</a>
+                <a href="/historial" class="btn btn-outline-light btn-sm">HISTORIAL</a>
             </div>
         </div>
     </nav>
 
     <div class="container">
-        <h3 class="mb-3">Avisos Pendientes</h3>
-        
-        <div class="table-responsive">
-            <table class="table table-hover bg-white shadow-sm">
-                <thead class="table-secondary">
-                    <tr>
-                        <th>Elemento</th>
-                        <th>Tipo</th>
-                        <th>Estado</th>
-                        <th>Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for p in pendientes %}
-                    <tr class="{{ 'prioridad-' + p[6]|lower }} {{ 'fila-papelera' if p[7] == 'Papelera' else '' }}" 
-                        style="background-color: {{ '#e3f2fd' if p[7] == 'Papelera' else '#ffffff' }};">
-                        
-                        <td>
-                            <strong>{{ p[1] }}</strong><br>
-                            <small class="text-muted">{{ p[2] }}</small><br>
-                            <span class="badge {{ 'bg-danger' if p[6] == 'Alta' else 'bg-warning text-dark' if p[6] == 'Media' else 'bg-success' }}">
-                                {{ p[6] }}
-                            </span>
-                        </td>
-                        
-                        <td>
-                            {% if p[7] == 'Papelera' %}
-                                <span class="badge badge-papelera">🗑️ Papelera</span>
-                            {% else %}
-                                <span class="badge bg-secondary">🚛 Contenedor</span>
-                            {% endif %}
-                        </td>
+        {% for p in pendientes %}
+        <div class="card card-incidencia prioridad-{{ p[6] }} {{ 'en-proceso' if p[3] == 'En Proceso' else '' }}" 
+             style="{{ 'background-color: #e3f2fd;' if p[7] == 'Papelera' and p[3] != 'En Proceso' else '' }}">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="card-title mb-1">{{ p[1] }}</h5>
+                        <p class="card-text text-muted mb-2">📍 {{ p[2] }}</p>
+                        <span class="badge {{ 'bg-info text-dark' if p[7] == 'Papelera' else 'bg-secondary' }}">
+                            {{ '🗑️ PAPELERA' if p[7] == 'Papelera' else '🚛 CONTENEDOR' }}
+                        </span>
+                    </div>
+                    <div class="text-end">
+                        <small class="d-block text-muted">{{ p[4].strftime('%H:%M') }}</small>
+                        <span class="badge {{ 'bg-danger' if p[6] == 'Alta' else 'bg-warning text-dark' if p[6] == 'Media' else 'bg-success' }}">
+                            {{ p[6] }}
+                        </span>
+                    </div>
+                </div>
 
-                        <td>
-                            <span class="badge {{ 'bg-info text-dark' if p[3] == 'En Proceso' else 'bg-light text-dark border' }}">
-                                {{ p[3] }}
-                            </span>
-                            {% if p[5] %}
-                                <br><small><strong>Operario:</strong> {{ p[5] }}</small>
-                            {% endif %}
-                        </td>
+                <hr class="my-3">
 
-                        <td>
-                            <div class="d-grid gap-2">
-                                {% if p[3] == 'Pendiente' %}
-                                    <button class="btn btn-warning btn-sm" onclick="asignarOperario({{ p[0] }})">Asignar</button>
-                                {% else %}
-                                    <button class="btn btn-success btn-sm" onclick="abrirModalCompletar({{ p[0] }}, '{{ p[7] }}')">Finalizar</button>
-                                {% endif %}
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                <div class="d-grid">
+                    {% if p[3] == 'Pendiente' %}
+                        <button class="btn btn-warning btn-voy shadow-sm" onclick="voyYo({{ p[0] }})">
+                            🚀 ¡VOY YO!
+                        </button>
+                    {% else %}
+                        <div class="text-center mb-2">
+                            <span class="text-dark">👷 <strong>{{ p[5] }}</strong> está en ello...</span>
+                        </div>
+                        <button class="btn btn-success btn-voy" onclick="abrirModalCompletar({{ p[0] }}, '{{ p[7] }}')">
+                            ✅ TERMINAR TRABAJO
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
         </div>
+        {% endfor %}
     </div>
+
+    <script>
+        function voyYo(id) {
+            const nombre = prompt("¿Quién eres? (Nombre del equipo/operario)");
+            if (nombre) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/asignar/' + id;
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'operario';
+                input.value = nombre;
+                form.appendChild(input);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        }
+
+        function abrirModalCompletar(id, tipo) {
+            document.getElementById('id_completar').value = id;
+            const divFraccion = document.getElementById('div_fraccion');
+            divFraccion.style.display = (tipo === 'Contenedor') ? 'block' : 'none';
+            const modal = new bootstrap.Modal(document.getElementById('modalFinalizar'));
+            modal.show();
+        }
+    </script>
 
     <div class="modal fade" id="modalFinalizar" tabindex="-1">
         <div class="modal-dialog">
@@ -104,7 +115,6 @@
                                 <option value="N/A" selected>N/A</option>
                             </select>
                         </div>
-                        
                         <h6>Recambios utilizados:</h6>
                         <div id="contenedor_recambios">
                             <div class="row g-2 mb-2">
@@ -122,7 +132,6 @@
                             </div>
                         </div>
                         <button type="button" class="btn btn-outline-secondary btn-sm mb-3" onclick="agregarRecambio()">+ Añadir otro</button>
-                        
                         <div class="mb-3">
                             <label class="form-label">Otros recambios/Notas:</label>
                             <textarea name="recambio_otro" class="form-control" rows="2"></textarea>
@@ -135,40 +144,8 @@
             </div>
         </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        function asignarOperario(id) {
-            const nombre = prompt("Nombre del operario:");
-            if (nombre) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '/asignar/' + id;
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = 'operario';
-                input.value = nombre;
-                form.appendChild(input);
-                document.body.appendChild(form);
-                form.submit();
-            }
-        }
-
-        function abrirModalCompletar(id, tipo) {
-            document.getElementById('id_completar').value = id;
-            const divFraccion = document.getElementById('div_fraccion');
-            
-            // Lógica corregida: Mostrar fracción SOLO si NO es papelera (es decir, es contenedor)
-            if (tipo === 'Contenedor') {
-                divFraccion.style.display = 'block';
-            } else {
-                divFraccion.style.display = 'none';
-            }
-            
-            const modal = new bootstrap.Modal(document.getElementById('modalFinalizar'));
-            modal.show();
-        }
-
         function agregarRecambio() {
             const container = document.getElementById('contenedor_recambios');
             const nuevo = container.firstElementChild.cloneNode(true);
